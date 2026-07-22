@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}代理池 · SearchOne{% endblock %}
+{% block page_title %}代理池{% endblock %}
+{% block page_description %}统一管理所有搜索渠道的出站代理{% endblock %}
+{% block content %}
+  <div class="toolbar proxy-toolbar">
+    <div class="toolbar-note"><span class="status-dot healthy"></span>变更会立即应用到全部 SearXNG 网络</div>
+    <div class="proxy-toolbar-actions">
+      <label class="compact-number"><span>并发</span><input type="number" min="1" max="50" value="20" data-proxy-concurrency aria-label="代理测试并发数"></label>
+      <button class="button secondary" type="button" data-proxy-batch-test disabled><svg><use href="#i-activity"/></svg><span data-proxy-batch-label>测试全部</span></button>
+      <button class="button secondary" type="button" data-proxy-import><svg><use href="#i-upload"/></svg>导入</button>
+      <button class="button primary" type="button" data-proxy-create><svg><use href="#i-plus"/></svg>添加代理</button>
+    </div>
+  </div>
+  <div class="table-shell">
+    <table>
+      <thead><tr><th class="select-cell"><input type="checkbox" data-proxy-select-all aria-label="全选代理"></th><th>名称</th><th>地址</th><th>适用渠道</th><th>权重</th><th>状态</th><th>出口 IP</th><th>延迟</th><th>最后检查</th><th class="actions">操作</th></tr></thead>
+      <tbody data-proxy-rows><tr><td colspan="10" class="loading-cell">正在加载代理池…</td></tr></tbody>
+    </table>
+  </div>
+  <aside class="drawer" data-proxy-drawer aria-hidden="true">
+    <form data-proxy-form>
+      <header class="drawer-header"><div><h2 data-proxy-title>添加代理</h2><p>支持 HTTP、HTTPS 与 SOCKS 代理</p></div><button class="icon-button" type="button" data-drawer-close title="关闭"><svg><use href="#i-x"/></svg></button></header>
+      <div class="drawer-body">
+        <input type="hidden" name="id">
+        <label class="field"><span>名称</span><input name="name" required placeholder="例如 香港出口 01"></label>
+        <div class="form-grid proxy-address"><label class="field"><span>协议</span><select name="scheme"><option value="http">HTTP</option><option value="https">HTTPS</option><option value="socks5">SOCKS5</option><option value="socks5h">SOCKS5H</option><option value="socks4">SOCKS4</option></select></label><label class="field wide"><span>主机</span><input name="host" required placeholder="127.0.0.1"></label><label class="field"><span>端口</span><input name="port" type="number" min="1" max="65535" required placeholder="8080"></label></div>
+        <div class="form-grid"><label class="field"><span>用户名</span><input name="username" autocomplete="off"></label><label class="field"><span>密码</span><div class="secret-control"><input name="password" type="password" autocomplete="off"><button type="button" title="显示密码" data-secret-toggle><svg><use href="#i-eye"/></svg></button></div></label></div>
+        <label class="switch-row"><span><strong>启用代理</strong><small>启用后立即进入出站轮询</small></span><input name="enabled" type="checkbox" checked><i></i></label>
+        <label class="field"><span>权重</span><input name="weight" type="number" min="1" max="100" value="1" required><small>数值越大，被选中的频率越高。</small></label>
+        <div class="field"><span>适用渠道</span><div class="engine-picker"><label><svg><use href="#i-search"/></svg><input type="search" placeholder="筛选渠道" data-proxy-engine-search></label><div data-proxy-engine-options class="engine-options"></div></div><small>不选择时应用到所有渠道。</small></div>
+        <div class="connection-result" data-proxy-result hidden></div>
+      </div>
+      <footer class="drawer-footer"><button class="button danger ghost" type="button" data-proxy-delete hidden>删除</button><button class="button secondary" type="button" data-proxy-test hidden><svg><use href="#i-activity"/></svg>测试代理</button><span></span><button class="button primary" type="submit">保存</button></footer>
+    </form>
+  </aside>
+  <aside class="drawer" data-proxy-import-drawer aria-hidden="true">
+    <form data-proxy-import-form>
+      <header class="drawer-header"><div><h2>批量导入代理</h2><p>逐行读取标准代理 URL</p></div><button class="icon-button" type="button" data-drawer-close title="关闭"><svg><use href="#i-x"/></svg></button></header>
+      <div class="drawer-body">
+        <label class="field"><span>代理列表</span><textarea name="text" rows="12" maxlength="1000000" placeholder="http://username:password@127.0.0.1:8080&#10;socks5://127.0.0.1:1080" data-proxy-import-text required></textarea><small data-proxy-import-count>0 行</small></label>
+        <div class="import-file-row"><label class="button secondary file-button"><svg><use href="#i-upload"/></svg>选择文件<input type="file" accept=".txt,.list,.csv,text/plain" data-proxy-import-file></label><span data-proxy-import-file-name>未选择文件</span></div>
+        <label class="switch-row"><span><strong>启用导入代理</strong><small>导入后立即进入全渠道代理池</small></span><input name="enabled" type="checkbox" checked><i></i></label>
+        <label class="switch-row"><span><strong>导入后并发测试</strong><small>测试失败的代理不会进入出站轮询</small></span><input name="test_after_import" type="checkbox" checked><i></i></label>
+        <label class="field"><span>测试并发数</span><input name="concurrency" type="number" min="1" max="50" value="20" required></label>
+        <div class="connection-result import-result" data-proxy-import-result hidden></div>
+      </div>
+      <footer class="drawer-footer"><span></span><button class="button primary" type="submit" data-proxy-import-submit>导入代理</button></footer>
+    </form>
+  </aside>
+{% endblock %}

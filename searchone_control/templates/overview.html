@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}概览 · SearchOne{% endblock %}
+{% block page_title %}概览{% endblock %}
+{% block page_description %}搜索服务状态与今日调用情况{% endblock %}
+{% block content %}
+  <div class="summary-strip" data-overview>
+    <div><span>客户端 Key</span><strong data-stat="clients">-</strong><small><b data-stat="active_clients">-</b> 个启用</small></div>
+    <div><span>今日请求</span><strong data-stat="requests_today">-</strong><small>所有客户端</small></div>
+    <div><span>今日失败</span><strong data-stat="failures_today">-</strong><small>包含渠道错误</small></div>
+    <div><span>供应商凭证</span><strong data-stat="configured_providers">-</strong><small>已配置并启用</small></div>
+    <div><span>健康代理</span><strong data-stat="healthy_proxies">-</strong><small>当前可用出口</small></div>
+  </div>
+
+  <section class="section-block">
+    <div class="section-heading"><div><h2>服务入口</h2><p>AgentOne 使用 Bearer Key 调用当前 SearchOne 实例。</p></div></div>
+    <div class="endpoint-row">
+      <div><span class="status-dot healthy"></span><strong>JSON 搜索接口</strong><code>/search?format=json</code></div>
+      <button class="icon-text-button" type="button" data-copy-value="{{ request.host_url.rstrip('/') }}/search?format=json"><svg><use href="#i-copy"/></svg>复制地址</button>
+    </div>
+    <div class="endpoint-row">
+      <div><span class="status-dot healthy"></span><strong>版本化接口</strong><code>/api/v1/search</code></div>
+      <button class="icon-text-button" type="button" data-copy-value="{{ request.host_url.rstrip('/') }}/api/v1/search"><svg><use href="#i-copy"/></svg>复制地址</button>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-heading"><div><h2>运行检查</h2><p>配置变更立即生效，不需要重启服务。</p></div></div>
+    <div class="status-list">
+      <a href="{{ url_for('searchone_admin.clients_page') }}"><svg><use href="#i-key"/></svg><span><strong>客户端访问控制</strong><small>渠道范围、请求量、并发与响应限制</small></span><svg class="chevron"><use href="#i-chevron"/></svg></a>
+      <a href="{{ url_for('searchone_admin.providers_page') }}"><svg><use href="#i-shield"/></svg><span><strong>供应商连接</strong><small>Tavily、Exa、秘塔和 TikHub 凭证</small></span><svg class="chevron"><use href="#i-chevron"/></svg></a>
+      <a href="{{ url_for('searchone_admin.proxies_page') }}"><svg><use href="#i-network"/></svg><span><strong>全渠道代理池</strong><small>所有 SearXNG 出站网络共享热更新代理</small></span><svg class="chevron"><use href="#i-chevron"/></svg></a>
+    </div>
+  </section>
+{% endblock %}

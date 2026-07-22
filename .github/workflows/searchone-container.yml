@@ -1,0 +1,100 @@
+---
+name: SearchOne Container
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: searchone-container-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: docker.io/foxtwobao/searchone
+
+jobs:
+  build-and-push:
+    if: >-
+      github.repository == 'foxtwobao/searchone'
+      && (github.ref_name == 'main' || github.ref_name == 'master')
+    name: Build, test, and push
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: "false"
+          fetch-depth: "0"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0  # v4.4.0
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_TOKEN }}
+
+      - name: Prepare image metadata
+        id: meta
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::12}"
+          echo "version=sha-${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Build SearchOne image
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          CREATED: ${{ steps.meta.outputs.created }}
+        run: |
+          docker build --pull \
+            --file container/dist.dockerfile \
+            --build-arg CREATED="$CREATED" \
+            --build-arg VERSION="$VERSION" \
+            --build-arg VCS_URL="https://github.com/${GITHUB_REPOSITORY}" \
+            --build-arg VCS_REVISION="$GITHUB_SHA" \
+            --build-arg VCS_BRANCH="$GITHUB_REF_NAME" \
+            --tag "$IMAGE_NAME:$VERSION" \
+            --tag "$IMAGE_NAME:latest" \
+            .
+
+      - name: Smoke test image
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          docker run --detach --name searchone-smoke \
+            --publish 127.0.0.1:18888:8888 \
+            "$IMAGE_NAME:$VERSION"
+          ready=0
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:18888/healthz >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs searchone-smoke
+            exit 1
+          fi
+
+      - name: Stop smoke-test container
+        if: always()
+        run: docker rm --force searchone-smoke 2>/dev/null || true
+
+      - name: Push commit image
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: docker push "$IMAGE_NAME:$VERSION"
+
+      - name: Push latest image
+        run: docker push "$IMAGE_NAME:latest"

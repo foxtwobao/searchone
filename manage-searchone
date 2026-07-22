@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SEARCHONE_ENV_FILE:-${REPO_ROOT}/config/searchone/.env}"
+RUNTIME_ENV_FILE="${SEARCHONE_RUNTIME_ENV_FILE:-${REPO_ROOT}/config/searchone/runtime-secrets.env}"
+
+cd "${REPO_ROOT}"
+
+./manage pyenv.install
+
+if ! ./local/py3/bin/python -c 'import cryptography' >/dev/null 2>&1; then
+    ./manage pyenv.cmd pip install -r requirements-searchone.txt
+fi
+
+./manage pyenv.cmd python -m searchone_control.bootstrap --path "${RUNTIME_ENV_FILE}" >/dev/null
+
+if [[ -f "${RUNTIME_ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${RUNTIME_ENV_FILE}"
+    set +a
+fi
+
+if [[ -f "${ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${ENV_FILE}"
+    set +a
+fi
+
+export SEARXNG_SETTINGS_PATH="${REPO_ROOT}/config/searchone/settings.yml"
+export SEARXNG_SECRET="${SEARCHONE_SESSION_SECRET}"
+
+if [[ "$#" -eq 0 ]]; then
+    set -- run
+fi
+
+if [[ "$1" != "run" ]]; then
+    exec make "$@"
+fi
+
+export SEARXNG_DEBUG="${SEARXNG_DEBUG:-1}"
+export GRANIAN_PROCESS_NAME="searchone"
+export GRANIAN_INTERFACE="wsgi"
+export GRANIAN_HOST="${SEARCHONE_HOST:-::}"
+export GRANIAN_PORT="${SEARCHONE_PORT:-8888}"
+export GRANIAN_WEBSOCKETS="false"
+export GRANIAN_BLOCKING_THREADS="8"
+export GRANIAN_WORKERS="1"
+export GRANIAN_WORKERS_KILL_TIMEOUT="30s"
+export GRANIAN_BLOCKING_THREADS_IDLE_TIMEOUT="5m"
+
+exec ./manage pyenv.cmd granian searchone_control.app:app

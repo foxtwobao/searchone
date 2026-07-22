@@ -1,0 +1,37 @@
+# SearchOne additions. Loaded on top of SearXNG defaults by ./manage-searchone.
+use_default_settings: true
+
+search:
+  formats:
+    - html
+    - json
+
+engines:
+  - name: tavily
+    engine: tavily
+    shortcut: tv
+    categories: [general]
+    timeout: 20.0
+    disabled: true
+    include_answer: true
+
+  - name: exa
+    engine: exa
+    shortcut: exa
+    categories: [general]
+    timeout: 20.0
+    disabled: true
+
+  - name: metaso
+    engine: metaso
+    shortcut: ms
+    categories: [general]
+    timeout: 20.0
+    disabled: true
+
+  - name: zhihu
+    engine: zhihu
+    shortcut: zh
+    categories: [social media]
+    timeout: 30.0
+    disabled: true

@@ -96,8 +96,29 @@ EOF
     check_file "$target_settings"
 }
 
+setup_searchone() {
+    searchone_data_path="${SEARCHONE_DATA_PATH:-/var/lib/searchone}"
+    runtime_env_file="${SEARCHONE_RUNTIME_ENV_FILE:-$searchone_data_path/runtime-secrets.env}"
+
+    mkdir -p "$searchone_data_path"
+    setup_ownership "$searchone_data_path" "directory"
+
+    /usr/local/searxng/.venv/bin/python -m searchone_control.bootstrap \
+        --path "$runtime_env_file"
+
+    set -a
+    # shellcheck disable=SC1090
+    . "$runtime_env_file"
+    set +a
+
+    export SEARCHONE_DATA_PATH="$searchone_data_path"
+    export SEARCHONE_RUNTIME_ENV_FILE="$runtime_env_file"
+    export SEARCHONE_DATABASE_PATH="${SEARCHONE_DATABASE_PATH:-$searchone_data_path/searchone.db}"
+    export SEARXNG_SECRET="${SEARXNG_SECRET:-$SEARCHONE_SESSION_SECRET}"
+}
+
 cat <<EOF
-SearXNG $__SEARXNG_VERSION
+SearchOne $__SEARXNG_VERSION
 EOF
 
 # Check for volume mounts
@@ -105,6 +126,7 @@ volume_handler "$__SEARXNG_CONFIG_PATH"
 volume_handler "$__SEARXNG_DATA_PATH"
 
 setup
+setup_searchone
 
 # root only features
 if [ "$(id -u)" -eq 0 ]; then
@@ -114,4 +136,8 @@ fi
 # ENVs aliases
 export GRANIAN_PORT="${SEARXNG_PORT:-$GRANIAN_PORT}"
 
-exec /usr/local/searxng/.venv/bin/granian searx.webapp:app
+if [ "$(id -u)" -eq 0 ]; then
+    exec gosu searxng /usr/local/searxng/.venv/bin/granian searchone_control.app:app
+fi
+
+exec /usr/local/searxng/.venv/bin/granian searchone_control.app:app

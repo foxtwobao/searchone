@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}供应商凭证 · SearchOne{% endblock %}
+{% block page_title %}供应商凭证{% endblock %}
+{% block page_description %}集中维护托管搜索渠道的访问凭证{% endblock %}
+{% block content %}
+  <div class="table-shell">
+    <table>
+      <thead><tr><th>供应商</th><th>环境变量</th><th>配置状态</th><th>连接状态</th><th>最后测试</th><th class="actions">操作</th></tr></thead>
+      <tbody data-provider-rows><tr><td colspan="6" class="loading-cell">正在加载供应商凭证…</td></tr></tbody>
+    </table>
+  </div>
+  <aside class="drawer" data-provider-drawer aria-hidden="true">
+    <form data-provider-form>
+      <header class="drawer-header"><div><h2 data-provider-title>供应商凭证</h2><p data-provider-env></p></div><button class="icon-button" type="button" data-drawer-close title="关闭"><svg><use href="#i-x"/></svg></button></header>
+      <div class="drawer-body">
+        <input type="hidden" name="provider">
+        <label class="switch-row"><span><strong>启用供应商</strong><small>停用后对应渠道将拒绝请求</small></span><input name="enabled" type="checkbox" checked><i></i></label>
+        <div class="field"><span>访问凭证</span><div class="secret-control"><input name="secret" type="password" autocomplete="off"><button type="button" title="显示凭证" data-secret-toggle><svg><use href="#i-eye"/></svg></button><button type="button" title="复制凭证" data-secret-copy><svg><use href="#i-copy"/></svg></button></div><small>凭证加密保存，页面不会缓存明文。</small></div>
+        <div class="connection-result" data-provider-result hidden></div>
+      </div>
+      <footer class="drawer-footer"><button class="button secondary" type="button" data-provider-test><svg><use href="#i-activity"/></svg>测试连接</button><span></span><button class="button primary" type="submit">保存</button></footer>
+    </form>
+  </aside>
+{% endblock %}
