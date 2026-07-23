@@ -1,7 +1,8 @@
 # SearchOne control plane
 
-This overlay adds Tavily, Exa, Metaso, and Zhihu plus a lightweight control
-plane without changing the upstream `searx/settings.yml` file.
+This overlay adds Tavily, Exa, Metaso, Zhihu, and a curated Chinese tender
+search channel plus a lightweight control plane without changing the upstream
+`searx/settings.yml` file.
 
 1. Create `config/searchone/.env` from `.env.example` and add any existing
    provider credentials.
@@ -26,6 +27,10 @@ also supports JSON POST bodies.
 Provider credentials and proxy pool changes take effect immediately. Enabled
 proxies are applied at runtime to all matching SearXNG outbound networks; a
 proxy with no channel selection applies to every engine.
+
+The `tender` channel reuses the managed `TAVILY_API_KEY`. It expands product and
+procurement terms and restricts results to the bundled public-procurement source
+catalog. Authorize `tender` separately on client API keys that need this channel.
 
 ## Docker Compose
 

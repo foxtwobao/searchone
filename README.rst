@@ -5,8 +5,9 @@ SearchOne is a search gateway based on SearXNG.  It keeps the SearXNG search
 experience while adding an administration console, client API keys, provider
 credentials, a shared proxy pool, and additional search providers.
 
-The project currently integrates Tavily, Exa, Metaso, and Zhihu.  Search,
-administration, and API access share the same HTTP service and port.
+The project currently integrates Tavily, Exa, Metaso, Zhihu, and a curated
+Chinese tender/procurement search channel.  Search, administration, and API
+access share the same HTTP service and port.
 
 Features
 ========
@@ -16,6 +17,8 @@ Features
 - Client API keys with channel, rate, result-count, and timeout limits.
 - Encrypted provider credential storage.
 - Shared HTTP, HTTPS, SOCKS4, and SOCKS5 proxy pool with hot updates.
+- Tender search across curated national, provincial, and enterprise procurement
+  sources using the managed Tavily credential.
 - Paste/file proxy import and concurrent health testing.
 - Lightweight administration console at ``/admin``.
 
@@ -85,10 +88,19 @@ The local service listens on port ``8888`` by default.
 API Example
 ===========
 
+See ``config/searchone/AGENT_API.md`` for the complete Chinese integration
+guide, request contract, tool schema, retry policy, and agent usage rules.
+
 Create a client key in the administration console, then call::
 
    curl -H 'Authorization: Bearer sone_...' \
      'http://127.0.0.1:8888/api/v1/search?q=OpenAI&format=json'
+
+To search the curated tender channel, authorize ``tender`` for the client key
+and request it explicitly::
+
+   curl -H 'Authorization: Bearer sone_...' \
+     'http://127.0.0.1:8888/api/v1/search?q=%E6%B6%88%E9%98%B2%E5%99%A8%E6%9D%90&engines=tender'
 
 Container Publishing
 ====================

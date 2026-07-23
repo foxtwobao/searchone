@@ -28,6 +28,11 @@ from .networking import (
 )
 from .providers import test_provider
 from .runtime import get_database, get_store
+from .tender.admin_search import (
+    eligible_proxies,
+    search_tenders,
+    source_catalog,
+)
 
 
 admin = Blueprint(
@@ -155,10 +160,64 @@ def proxies_page():
     return render_template("proxies.html", active_page="proxies")
 
 
+@admin.route("/tender-search")
+@_admin_required
+def tender_search_page():
+    return render_template("tender_search.html", active_page="tender-search")
+
+
 @admin.route("/api/overview")
 @_admin_required
 def overview_api():
     return jsonify(get_store().overview())
+
+
+@admin.route("/api/tender-search/sources")
+@_admin_required
+def tender_search_sources_api():
+    proxies = get_store().list_proxies(reveal=True)
+    available = eligible_proxies(proxies)
+    return jsonify(
+        {
+            "sources": source_catalog(),
+            "available_proxies": len(available),
+            "direct_mode": not available,
+        }
+    )
+
+
+@admin.route("/api/tender-search", methods=["POST"])
+@_admin_required
+def tender_search_api():
+    csrf_error = _require_csrf()
+    if csrf_error:
+        return csrf_error
+    try:
+        payload = _json_payload()
+        raw_sources = payload.get("sources", [])
+        if not isinstance(raw_sources, list):
+            raise ValueError("省份网站必须是数组")
+        result = search_tenders(
+            str(payload.get("keyword", "")),
+            [str(item) for item in raw_sources],
+            get_store().list_proxies(reveal=True),
+            days=int(payload.get("days", 90)),
+            per_source=int(payload.get("per_source", 10)),
+        )
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": "invalid_search", "message": str(exc)}), 400
+    _audit(
+        "search",
+        "tender_sources",
+        "bulk",
+        {
+            "sources": result["searched"],
+            "succeeded": result["succeeded"],
+            "failed": result["failed"],
+            "results": result["result_count"],
+        },
+    )
+    return jsonify(result)
 
 
 @admin.route("/api/engines")

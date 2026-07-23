@@ -1,0 +1,137 @@
+{
+  "default_mode": "deep",
+  "modes": {
+    "standard": {
+      "recent_days": 7,
+      "correction_days": 14,
+      "page_limit": 2,
+      "stagnant_page_limit": 1,
+      "city_mode": "none",
+      "min_required_attempt_rate": 0.9,
+      "min_success_rate": 0.65,
+      "min_city_attempt_rate": 0.0,
+      "min_china500_attempt_rate": 0.6
+    },
+    "deep": {
+      "recent_days": 14,
+      "correction_days": 30,
+      "page_limit": 5,
+      "stagnant_page_limit": 2,
+      "city_mode": "broad",
+      "min_required_attempt_rate": 0.95,
+      "min_success_rate": 0.7,
+      "min_city_attempt_rate": 0.85,
+      "min_china500_attempt_rate": 1.0
+    },
+    "exhaustive": {
+      "recent_days": 30,
+      "correction_days": 60,
+      "page_limit": 10,
+      "stagnant_page_limit": 3,
+      "city_mode": "bundles",
+      "min_required_attempt_rate": 1.0,
+      "min_success_rate": 0.75,
+      "min_city_attempt_rate": 0.95,
+      "min_china500_attempt_rate": 1.0
+    }
+  },
+  "procurement_terms": [
+    "招标",
+    "采购",
+    "询比",
+    "询价",
+    "竞价",
+    "比选",
+    "竞争性谈判",
+    "竞争性磋商",
+    "供应商征集",
+    "框架协议",
+    "年度采购",
+    "零星物资"
+  ],
+  "starter_procurement_terms": [
+    "小额采购",
+    "零星采购",
+    "零星物资",
+    "询价",
+    "询比",
+    "竞价",
+    "比选",
+    "分包",
+    "标包",
+    "电子卖场",
+    "网上商城",
+    "框架协议",
+    "供应商征集"
+  ],
+  "category_bundles": [
+    {
+      "name": "MRO与劳保",
+      "categories": ["五金工具", "日杂劳保"],
+      "query_terms": ["五金工具", "工器具", "劳保用品", "劳动防护", "低值易耗品"]
+    },
+    {
+      "name": "电气与消防",
+      "categories": ["电气电料", "消防产品"],
+      "query_terms": ["电气材料", "电工材料", "电线电缆", "消防器材", "灭火器"]
+    },
+    {
+      "name": "涂装保温纺织",
+      "categories": ["油漆涂料", "保温材料", "纺织用品"],
+      "query_terms": ["油漆涂料", "防腐材料", "保温材料", "岩棉", "纺织用品", "被褥"]
+    }
+  ],
+  "enterprise_platform_catalog": {
+    "enabled": true,
+    "path": "china500-procurement-platforms-2025.csv",
+    "catalog_name": "2025中国企业500强采购平台目录",
+    "expected_rows": 103,
+    "expected_distinct_companies": 98,
+    "tier": "china500_corporate",
+    "priority_map": {"A": 2, "B": 3, "C": 4},
+    "task_strategy_by_mode": {
+      "standard": "combined",
+      "deep": "combined",
+      "exhaustive": "bundles"
+    }
+  },
+  "sources": [
+    {"name": "全国公共资源交易平台", "url": "https://www.ggzy.gov.cn/", "tier": "national", "priority": 1},
+    {"name": "中国政府采购网", "url": "https://www.ccgp.gov.cn/", "tier": "national", "priority": 1},
+    {"name": "中国政府采购网搜索", "url": "https://search.ccgp.gov.cn/", "tier": "national", "priority": 1},
+    {"name": "中国招标投标公共服务平台", "url": "http://www.cebpubservice.com/", "tier": "national", "priority": 1},
+
+    {"name": "陕西公共资源交易平台", "url": "http://www.sxggzyjy.cn/", "tier": "provincial", "priority": 1, "region": "陕西"},
+    {"name": "陕西省政府采购网", "url": "https://www.ccgp-shaanxi.gov.cn/", "tier": "provincial", "priority": 1, "region": "陕西"},
+    {"name": "河南省公共资源交易中心", "url": "https://hnsggzyjy.henan.gov.cn/", "tier": "provincial", "priority": 1, "region": "河南"},
+    {"name": "河南省政府采购网", "url": "https://zfcg.henan.gov.cn/", "tier": "provincial", "priority": 1, "region": "河南"},
+    {"name": "全国公共资源交易平台（山西省）", "url": "https://prec.sxzwfw.gov.cn/", "tier": "provincial", "priority": 1, "region": "山西"},
+    {"name": "甘肃省公共资源交易中心", "url": "https://ggzyjy.gansu.gov.cn/", "tier": "provincial", "priority": 1, "region": "甘肃"},
+    {"name": "内蒙古自治区公共资源交易网", "url": "https://ggzyjy.nmg.gov.cn/", "tier": "provincial", "priority": 1, "region": "内蒙古"},
+    {"name": "内蒙古自治区政府采购网", "url": "https://www.ccgp-neimenggu.gov.cn/", "tier": "provincial", "priority": 1, "region": "内蒙古"},
+    {"name": "河北省公共资源交易服务平台", "url": "http://ggzy.hebei.gov.cn/hbggfwpt/", "tier": "provincial", "priority": 1, "region": "河北"},
+
+    {"name": "中国电建阳光采购网", "url": "https://bid.powerchina.cn/", "tier": "corporate", "priority": 2},
+    {"name": "中国石油招标投标网", "url": "https://www.cnpcbidding.com/", "tier": "corporate", "priority": 2},
+    {"name": "国能e招", "url": "https://www.chnenergybidding.com.cn/bidweb/", "tier": "corporate", "priority": 2},
+    {"name": "中国石化物资采购平台", "url": "https://ec.sinopec.com/", "tier": "corporate", "priority": 2},
+    {"name": "国家电网电子商务平台", "url": "http://ecp.sgcc.com.cn/ecp2.0/portal/", "tier": "corporate", "priority": 2},
+    {"name": "中国中铁采购电子商务平台", "url": "https://www.qqec.com/", "tier": "corporate", "priority": 2},
+    {"name": "中国铁建设备采购网", "url": "https://ece.crcc.cn/homepage/index.jhtml", "tier": "corporate", "priority": 2},
+    {"name": "中国联通采购与招标网", "url": "https://www.cupb.cn/home", "tier": "corporate", "priority": 2},
+    {"name": "中国移动采购与招标网", "url": "https://b2b.10086.cn/", "tier": "corporate", "priority": 2},
+    {"name": "中国电信阳光采购网", "url": "https://caigou.chinatelecom.com.cn/", "tier": "corporate", "priority": 2},
+    {"name": "中国华能集团电子商务平台", "url": "https://ec.chng.com.cn/", "tier": "corporate", "priority": 2},
+    {"name": "中国大唐集团电子商务平台", "url": "https://www.cdt-ec.com/", "tier": "corporate", "priority": 2},
+    {"name": "中煤易购", "url": "https://ego.chinacoal.com/", "tier": "corporate", "priority": 2},
+    {"name": "中国五矿供应链管理平台", "url": "https://ec.minmetals.com.cn/", "tier": "corporate", "priority": 2}
+  ],
+  "prefectures": {
+    "陕西": ["西安", "宝鸡", "咸阳", "铜川", "渭南", "延安", "榆林", "汉中", "安康", "商洛", "西咸新区"],
+    "河南": ["郑州", "开封", "洛阳", "平顶山", "安阳", "鹤壁", "新乡", "焦作", "濮阳", "许昌", "漯河", "三门峡", "南阳", "商丘", "信阳", "周口", "驻马店", "济源"],
+    "山西": ["太原", "大同", "阳泉", "长治", "晋城", "朔州", "晋中", "运城", "忻州", "临汾", "吕梁"],
+    "甘肃": ["兰州", "嘉峪关", "金昌", "白银", "天水", "武威", "张掖", "平凉", "酒泉", "庆阳", "定西", "陇南", "临夏", "甘南"],
+    "内蒙古": ["呼和浩特", "包头", "乌海", "赤峰", "通辽", "鄂尔多斯", "呼伦贝尔", "巴彦淖尔", "乌兰察布", "兴安盟", "锡林郭勒盟", "阿拉善盟"],
+    "河北": ["石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水", "雄安新区"]
+  }
+}

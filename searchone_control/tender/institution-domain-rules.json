@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-22",
+  "rules": [
+    {
+      "suffix": "edu.cn",
+      "sectors": ["school"],
+      "trust": "high",
+      "use": "discovery_and_accept",
+      "requirements": ["exact_institution_name", "procurement_intent"]
+    },
+    {
+      "suffix": "gov.cn",
+      "sectors": ["school", "hospital"],
+      "trust": "high",
+      "use": "discovery_and_accept",
+      "requirements": ["exact_institution_name", "procurement_intent"]
+    },
+    {
+      "suffix": "ac.cn",
+      "sectors": ["school", "hospital"],
+      "trust": "high",
+      "use": "discovery_and_accept",
+      "requirements": ["exact_institution_name", "procurement_intent"]
+    },
+    {
+      "suffix": "org.cn",
+      "sectors": ["hospital"],
+      "trust": "medium",
+      "use": "discovery_only",
+      "requirements": ["exact_institution_name", "official_identity_evidence", "procurement_intent"]
+    },
+    {
+      "suffix": "com.cn",
+      "sectors": ["hospital"],
+      "trust": "low",
+      "use": "discovery_only",
+      "requirements": ["exact_institution_name", "official_identity_evidence", "procurement_intent"]
+    },
+    {
+      "suffix": "cn",
+      "sectors": ["hospital"],
+      "trust": "low",
+      "use": "discovery_only",
+      "requirements": ["exact_institution_name", "official_identity_evidence", "procurement_intent"]
+    }
+  ],
+  "blocked_patterns": [
+    "bid aggregation without an original announcement link",
+    "directory and encyclopedia pages",
+    "supplier advertisements",
+    "copied announcements without purchaser or project evidence"
+  ]
+}

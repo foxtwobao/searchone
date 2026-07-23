@@ -40,6 +40,7 @@
           <a class="nav-item {% if active_page == 'clients' %}active{% endif %}" href="{{ url_for('searchone_admin.clients_page') }}"><svg><use href="#i-key"/></svg><span>客户端 Key</span></a>
           <a class="nav-item {% if active_page == 'providers' %}active{% endif %}" href="{{ url_for('searchone_admin.providers_page') }}"><svg><use href="#i-shield"/></svg><span>供应商凭证</span></a>
           <a class="nav-item {% if active_page == 'proxies' %}active{% endif %}" href="{{ url_for('searchone_admin.proxies_page') }}"><svg><use href="#i-network"/></svg><span>代理池</span></a>
+          <a class="nav-item {% if active_page == 'tender-search' %}active{% endif %}" href="{{ url_for('searchone_admin.tender_search_page') }}"><svg><use href="#i-search"/></svg><span>招投标搜索</span></a>
         </nav>
         <div class="sidebar-foot">
           <a href="/" class="subtle-link">返回搜索首页</a>

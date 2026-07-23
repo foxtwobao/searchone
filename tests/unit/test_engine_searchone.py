@@ -4,7 +4,14 @@
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
-from searx.engines import exa, metaso, tavily, zhihu
+from searchone_control.tender import (
+    build_tender_query,
+    catalog_sources,
+    source_for_url,
+    tender_domains,
+)
+
+from searx.engines import exa, metaso, tavily, tender, zhihu
 from searx.exceptions import (
     SearxEngineAPIException,
     SearxEngineTooManyRequestsException,
@@ -70,6 +77,82 @@ class TavilyEngineTests(SearxTestCase):
         ):
             with self.assertRaises(SearxEngineAPIException):
                 tavily.request("query", params())
+
+
+class TenderEngineTests(SearxTestCase):
+
+    def test_catalog_and_query_expansion(self):
+        self.assertEqual(len(catalog_sources()), 103)
+        self.assertEqual(len(tender_domains()), 118)
+        self.assertEqual(len(tender_domains()), len(set(tender_domains())))
+
+        query = build_tender_query("榆林 消防器材")
+        self.assertIn("榆林 消防器材", query)
+        self.assertIn("灭火器", query)
+        self.assertIn("询价", query)
+
+        source = source_for_url("https://search.ccgp.gov.cn/bxsearch")
+        self.assertIsNotNone(source)
+        self.assertEqual(source.name, "中国政府采购网搜索")
+
+    def test_request_uses_tavily_with_domain_allowlist(self):
+        request_params = params(time_range="month")
+        with patch.object(tender, "api_key", "test-key"):
+            tender.request("陕西 五金工具", request_params)
+
+        payload = request_params["json"]
+        self.assertEqual(request_params["url"], "https://api.tavily.com/search")
+        self.assertEqual(request_params["method"], "POST")
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer test-key")
+        self.assertEqual(payload["time_range"], "month")
+        self.assertFalse(payload["include_answer"])
+        self.assertEqual(len(payload["include_domains"]), 118)
+        self.assertIn("ccgp.gov.cn", payload["include_domains"])
+        self.assertIn("五金", payload["query"])
+
+    def test_request_defaults_to_recent_results(self):
+        request_params = params()
+        with patch.object(tender, "api_key", "test-key"):
+            tender.request("陕西 劳保用品", request_params)
+
+        self.assertEqual(request_params["json"]["time_range"], "month")
+
+    def test_explicit_year_disables_default_time_filter(self):
+        request_params = params()
+        with patch.object(tender, "api_key", "test-key"):
+            tender.request("2024 陕西 劳保用品", request_params)
+
+        self.assertNotIn("time_range", request_params["json"])
+        self.assertEqual(request_params["json"]["query"].count("2024"), 1)
+
+    def test_response_filters_unknown_domains_and_labels_source(self):
+        results = tender.response(
+            response(
+                {
+                    "results": [
+                        {
+                            "title": "<em>消防器材</em>采购公告",
+                            "url": "https://www.ccgp.gov.cn/cggg/dfgg/gkzb/notice.htm",
+                            "content": "采购灭火器",
+                            "score": 0.92,
+                            "published_date": "2026-07-21T10:00:00+08:00",
+                            "favicon": "https://www.ccgp.gov.cn/favicon.ico",
+                        },
+                        {
+                            "title": "Untrusted mirror",
+                            "url": "https://example.com/tender/1",
+                            "content": "Mirror",
+                        },
+                    ]
+                }
+            )
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].title, "消防器材采购公告")
+        self.assertIn("中国政府采购网", results[0].metadata)
+        self.assertIn("Tavily score: 0.920", results[0].metadata)
+        self.assertEqual(results[0].priority, "high")
 
 
 class ExaEngineTests(SearxTestCase):

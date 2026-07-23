@@ -128,6 +128,138 @@
   if (page === 'clients') initClients();
   if (page === 'providers') initProviders();
   if (page === 'proxies') initProxies();
+  if (page === 'tender-search') initTenderSearch();
+
+  async function initTenderSearch() {
+    const form = document.querySelector('[data-tender-search-form]');
+    const sourceContainer = document.querySelector('[data-tender-sources]');
+    const proxyNote = document.querySelector('[data-tender-proxy-note]');
+    const toggleButton = document.querySelector('[data-tender-toggle]');
+    const submitButton = form.querySelector('.tender-submit');
+    const submitLabel = form.querySelector('[data-tender-submit-label]');
+    const resultsSection = document.querySelector('[data-tender-results]');
+    const summary = document.querySelector('[data-tender-summary]');
+    const sourceStatus = document.querySelector('[data-tender-source-status]');
+    const resultRows = document.querySelector('[data-tender-result-rows]');
+    const emptyState = document.querySelector('[data-tender-empty]');
+    let sources = [];
+    let availableProxies = 0;
+    let directMode = false;
+
+    const checkedSources = () => [...sourceContainer.querySelectorAll('input:checked')];
+
+    function updateSelection() {
+      const selected = checkedSources().length;
+      proxyNote.textContent = directMode
+        ? `本机直连 · 已选 ${selected}/${sources.length} 个网站`
+        : `可用代理 ${availableProxies} 个 · 其余自动直连 · 已选 ${selected}/${sources.length} 个网站 · 每轮轮换`;
+      submitButton.disabled = selected === 0;
+      toggleButton.textContent = selected ? '清空选择' : '全选';
+    }
+
+    function showEmpty(message, failed = false) {
+      emptyState.hidden = false;
+      emptyState.classList.toggle('failed', failed);
+      emptyState.querySelector('strong').textContent = message;
+      resultsSection.hidden = true;
+    }
+
+    function formatTenderDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return esc(value);
+      return new Intl.DateTimeFormat('zh-CN', {
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+      }).format(date);
+    }
+
+    function renderResults(data) {
+      emptyState.hidden = true;
+      resultsSection.hidden = false;
+      summary.innerHTML = `
+        <div><span>命中公告</span><strong>${Number(data.result_count).toLocaleString('zh-CN')}</strong></div>
+        <div><span>成功网站</span><strong>${data.succeeded}/${data.searched}</strong></div>
+        <div><span>失败网站</span><strong class="${data.failed ? 'danger-text' : ''}">${data.failed}</strong></div>
+        <div><span>总耗时</span><strong>${(data.duration_ms / 1000).toFixed(1)}s</strong></div>
+        <div><span>时间范围</span><strong>${data.days} 天</strong></div>
+      `;
+      sourceStatus.innerHTML = data.sources.map((item) => `
+        <div class="tender-source-outcome ${item.status}">
+          <span class="status-dot ${item.status === 'ok' ? 'healthy' : 'failed'}"></span>
+          <div><strong>${esc(item.source.province)} · ${esc(item.source.name)}</strong><small>${item.status === 'ok' ? `命中 ${item.result_count} / ${item.total} 条` : esc(item.error)}</small></div>
+          <span>${esc(item.proxy.name)}${item.proxy.exit_ip ? ` · ${esc(item.proxy.exit_ip)}` : ''}</span>
+          <time>${item.duration_ms} ms</time>
+        </div>
+      `).join('');
+      resultRows.innerHTML = data.results.map((item) => `
+        <tr>
+          <td class="tender-date">${formatTenderDate(item.published_at)}</td>
+          <td><strong>${esc(item.province)}</strong></td>
+          <td class="tender-title"><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)}</a>${item.summary ? `<small>${esc(item.summary)}</small>` : ''}${item.project_code ? `<code>${esc(item.project_code)}</code>` : ''}</td>
+          <td data-label="采购人 / 发布人">${esc(item.buyer || '-')}</td>
+          <td data-label="公告类型">${esc(item.category || '-')}</td>
+          <td data-label="来源"><span class="channel-tag">${esc(item.source_name)}</span></td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" class="empty-cell">所选时间范围内没有匹配公告</td></tr>';
+    }
+
+    sourceContainer.addEventListener('change', updateSelection);
+    toggleButton.addEventListener('click', () => {
+      const checkboxes = [...sourceContainer.querySelectorAll('input')];
+      if (checkedSources().length) checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      else checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      updateSelection();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const selected = checkedSources().map((input) => input.value);
+      submitButton.disabled = true;
+      submitLabel.textContent = '搜索中…';
+      form.setAttribute('aria-busy', 'true');
+      showEmpty(`正在并发搜索 ${selected.length} 个网站`);
+      try {
+        const data = await api('/admin/api/tender-search', {
+          method: 'POST',
+          body: {
+            keyword: form.keyword.value.trim(),
+            sources: selected,
+            days: Number(form.days.value),
+            per_source: Number(form.per_source.value)
+          }
+        });
+        renderResults(data);
+        toast(`搜索完成，共找到 ${data.result_count} 条公告`, data.failed ? 'warning' : '');
+      } catch (error) {
+        showEmpty(error.message, true);
+        toast(error.message, 'error');
+      } finally {
+        form.removeAttribute('aria-busy');
+        submitLabel.textContent = '开始搜索';
+        updateSelection();
+      }
+    });
+
+    try {
+      const data = await api('/admin/api/tender-search/sources');
+      sources = data.sources;
+      availableProxies = data.available_proxies;
+      directMode = data.direct_mode;
+      sourceContainer.innerHTML = sources.map((source) => `
+        <label class="tender-source-option">
+          <input type="checkbox" value="${esc(source.source_id)}" checked>
+          <span><strong>${esc(source.province)}</strong><small>${esc(source.name)}</small></span>
+          <em>${source.name.includes('公共资源') ? '公共资源' : '政府采购'}</em>
+        </label>
+      `).join('');
+      updateSelection();
+    } catch (error) {
+      sourceContainer.innerHTML = `<div class="empty-cell">${esc(error.message)}</div>`;
+      proxyNote.textContent = '代理池读取失败';
+      showEmpty(error.message, true);
+      toast(error.message, 'error');
+    }
+  }
 
   async function initOverview() {
     try {

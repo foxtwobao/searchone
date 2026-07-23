@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}招投标搜索 · SearchOne{% endblock %}
+{% block page_title %}招投标搜索{% endblock %}
+{% block page_description %}多省官方采购与公共资源平台并发检索{% endblock %}
+
+{% block content %}
+  <form class="tender-search-tool" data-tender-search-form>
+    <div class="tender-search-row">
+      <label class="search-field tender-keyword">
+        <svg><use href="#i-search"/></svg>
+        <input type="search" name="keyword" maxlength="100" autocomplete="off" placeholder="项目名称、采购人或产品关键词" required>
+      </label>
+      <label class="compact-select"><span>时间</span><select name="days"><option value="30">近 30 天</option><option value="90" selected>近 90 天</option><option value="180">近半年</option><option value="365">近一年</option><option value="1095">近三年</option></select></label>
+      <label class="compact-select"><span>每站</span><select name="per_source"><option value="5">5 条</option><option value="10" selected>10 条</option><option value="20">20 条</option></select></label>
+      <button class="button primary tender-submit" type="submit" disabled><svg><use href="#i-search"/></svg><span data-tender-submit-label>开始搜索</span></button>
+    </div>
+
+    <div class="tender-source-head">
+      <strong>搜索范围</strong>
+      <span data-tender-proxy-note>正在读取代理池…</span>
+      <button class="icon-text-button" type="button" data-tender-toggle>取消全选</button>
+    </div>
+    <div class="tender-source-grid" data-tender-sources>
+      <div class="loading-cell">正在加载省份网站…</div>
+    </div>
+  </form>
+
+  <section class="tender-results" data-tender-results hidden>
+    <div class="tender-summary" data-tender-summary></div>
+    <div class="tender-source-status" data-tender-source-status></div>
+    <div class="table-shell tender-table-shell">
+      <table class="tender-table">
+        <thead><tr><th>发布时间</th><th>省份</th><th>公告标题</th><th>采购人 / 发布人</th><th>公告类型</th><th>来源</th></tr></thead>
+        <tbody data-tender-result-rows></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="tender-empty" data-tender-empty>
+    <svg><use href="#i-search"/></svg>
+    <strong>等待搜索</strong>
+  </div>
+{% endblock %}

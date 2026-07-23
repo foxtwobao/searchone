@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import httpx
 from cryptography.fernet import Fernet
 
 from searchone_control.bootstrap import ensure_runtime_secrets
@@ -19,6 +20,15 @@ from searchone_control.networking import (
     test_proxies_concurrently,
 )
 from searchone_control.store import ControlStore
+from searchone_control.tender.admin_search import (
+    SOURCES,
+    _epoint,
+    _shandong,
+    _zcy,
+    plain_text,
+    search_tenders,
+    source_catalog,
+)
 
 
 class SearchOneControlStoreTest(unittest.TestCase):
@@ -173,6 +183,260 @@ class SearchOneControlStoreTest(unittest.TestCase):
             created, persisted = ensure_runtime_secrets(path)
         self.assertFalse(created)
         self.assertEqual(persisted["SEARCHONE_ADMIN_PASSWORD"], "first-password")
+
+
+class AdminTenderSearchTest(unittest.TestCase):
+    @staticmethod
+    def _proxy(proxy_id: str, host: str) -> dict:
+        return {
+            "id": proxy_id,
+            "name": f"proxy-{proxy_id}",
+            "scheme": "http",
+            "host": host,
+            "port": 8080,
+            "username": "",
+            "password": "",
+            "enabled": True,
+            "channels": [],
+            "exit_ip": "203.0.113.10",
+        }
+
+    def test_source_catalog_contains_ten_distinct_provinces(self):
+        catalog = source_catalog()
+
+        self.assertEqual(len(catalog), 10)
+        self.assertEqual(len({item["province"] for item in catalog}), 10)
+        self.assertNotIn("search_url", catalog[0])
+        self.assertNotIn("adapter", catalog[0])
+
+    def test_plain_text_removes_highlight_markup(self):
+        self.assertEqual(
+            plain_text("医院<em style='color:red'>医疗</em>&nbsp;设备"),
+            "医院医疗 设备",
+        )
+
+    def test_search_assigns_one_distinct_proxy_per_source(self):
+        proxies = [self._proxy("one", "127.0.0.1"), self._proxy("two", "127.0.0.2")]
+
+        def fake_search(source, proxy, keyword, days, per_source):
+            return {
+                "source": {
+                    "source_id": source.source_id,
+                    "province": source.province,
+                    "name": source.name,
+                    "website": source.website,
+                },
+                "proxy": {"id": proxy["id"], "name": proxy["name"], "exit_ip": ""},
+                "status": "ok",
+                "duration_ms": 1,
+                "total": 0,
+                "result_count": 0,
+                "results": [],
+                "error": "",
+            }
+
+        source_ids = [SOURCES[0].source_id, SOURCES[1].source_id]
+        with (
+            patch(
+                "searchone_control.tender.admin_search._search_source",
+                side_effect=fake_search,
+            ),
+            patch.dict(
+                "searchone_control.tender.admin_search._LAST_PROXY_BY_SOURCE",
+                {},
+                clear=True,
+            ),
+            patch("searchone_control.tender.admin_search._PROXY_CURSOR", 0),
+        ):
+            first = search_tenders("医疗设备", source_ids, proxies)
+            second = search_tenders("医疗设备", source_ids, proxies)
+
+        self.assertEqual(first["succeeded"], 2)
+        self.assertEqual(
+            len({item["proxy"]["id"] for item in first["sources"]}), 2
+        )
+        first_by_source = {
+            item["source"]["source_id"]: item["proxy"]["id"]
+            for item in first["sources"]
+        }
+        second_by_source = {
+            item["source"]["source_id"]: item["proxy"]["id"]
+            for item in second["sources"]
+        }
+        self.assertTrue(
+            all(
+                first_by_source[source_id] != second_by_source[source_id]
+                for source_id in source_ids
+            )
+        )
+
+    def test_search_uses_direct_for_sources_without_unique_proxy(self):
+        proxies = [self._proxy("one", "127.0.0.1"), self._proxy("two", "127.0.0.1")]
+
+        def fake_search(source, proxy, keyword, days, per_source):
+            return {
+                "source": {
+                    "source_id": source.source_id,
+                    "province": source.province,
+                    "name": source.name,
+                    "website": source.website,
+                },
+                "proxy": {
+                    "id": proxy["id"] if proxy else "",
+                    "name": proxy["name"] if proxy else "本机直连",
+                    "exit_ip": "",
+                },
+                "status": "ok",
+                "duration_ms": 1,
+                "total": 0,
+                "result_count": 0,
+                "results": [],
+                "error": "",
+            }
+
+        with (
+            patch(
+                "searchone_control.tender.admin_search._search_source",
+                side_effect=fake_search,
+            ),
+            patch.dict(
+                "searchone_control.tender.admin_search._LAST_PROXY_BY_SOURCE",
+                {},
+                clear=True,
+            ),
+            patch("searchone_control.tender.admin_search._PROXY_CURSOR", 0),
+        ):
+            first = search_tenders(
+                "医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies
+            )
+            second = search_tenders(
+                "医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies
+            )
+
+        self.assertEqual(
+            {item["proxy"]["name"] for item in first["sources"]},
+            {"proxy-one", "本机直连"},
+        )
+        first_proxied = next(
+            item["source"]["source_id"]
+            for item in first["sources"]
+            if item["proxy"]["id"]
+        )
+        second_proxied = next(
+            item["source"]["source_id"]
+            for item in second["sources"]
+            if item["proxy"]["id"]
+        )
+        self.assertNotEqual(first_proxied, second_proxied)
+
+    def test_search_uses_direct_connection_when_proxy_pool_is_empty(self):
+        outcome = {
+            "source": {
+                "source_id": SOURCES[0].source_id,
+                "province": SOURCES[0].province,
+                "name": SOURCES[0].name,
+                "website": SOURCES[0].website,
+            },
+            "proxy": {"id": "", "name": "本机直连", "exit_ip": ""},
+            "status": "ok",
+            "duration_ms": 1,
+            "total": 0,
+            "result_count": 0,
+            "results": [],
+            "error": "",
+        }
+        with patch(
+            "searchone_control.tender.admin_search._search_source",
+            return_value=outcome,
+        ) as mocked:
+            result = search_tenders("医疗设备", [SOURCES[0].source_id], [])
+
+        self.assertIsNone(mocked.call_args.args[1])
+        self.assertEqual(result["sources"][0]["proxy"]["name"], "本机直连")
+
+    def test_zcy_response_is_normalized(self):
+        payload = {
+            "result": {
+                "data": {
+                    "total": 1,
+                    "data": [
+                        {
+                            "articleId": "article+id==",
+                            "firstCode": "ZcyAnnouncement",
+                            "parentId": 100,
+                            "title": "医院<em>设备</em>招标公告",
+                            "content": "采购&nbsp;内容",
+                            "publishDate": 1784734233000,
+                            "purchaseName": "某医院",
+                            "pathName": "采购公告",
+                            "projectCode": "P-001",
+                        }
+                    ],
+                }
+            }
+        }
+        transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=payload))
+
+        with httpx.Client(transport=transport) as client:
+            results, total = _zcy(client, SOURCES[0], "设备", 90, 5)
+
+        self.assertEqual(total, 1)
+        self.assertEqual(results[0]["title"], "医院设备招标公告")
+        self.assertIn("article%2Bid%3D%3D", results[0]["url"])
+
+    def test_shandong_response_is_normalized(self):
+        shandong_payload = {
+            "data": {
+                "data": {
+                    "total": 1,
+                    "records": [
+                        {
+                            "id": "encrypted-id",
+                            "title": "山东设备采购公告",
+                            "date": "2026-07-22 18:16:07",
+                            "colCode": "0301",
+                            "oldData": 0,
+                            "userName": "代理机构",
+                            "buyKindCode": "公开招标",
+                        }
+                    ],
+                }
+            }
+        }
+        transport = httpx.MockTransport(
+            lambda _request: httpx.Response(200, json=shandong_payload)
+        )
+        with httpx.Client(transport=transport) as client:
+            shandong, _ = _shandong(client, SOURCES[7], "设备", 90, 5)
+
+        self.assertEqual(shandong[0]["buyer"], "代理机构")
+        self.assertIn("/detail?", shandong[0]["url"])
+
+    def test_epoint_response_is_normalized(self):
+        payload = {
+            "result": {
+                "totalcount": 1,
+                "records": [
+                    {
+                        "title": "青海<em>设备</em>采购公告",
+                        "content": "公告内容",
+                        "linkurl": "/ggzy/notice/1.html",
+                        "showdate": "2026-07-22 18:00:07",
+                        "xiaquname": "青海省本级",
+                        "gonggaotype": "政府采购",
+                        "id": "notice-1",
+                    }
+                ],
+            }
+        }
+        transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=payload))
+
+        with httpx.Client(transport=transport) as client:
+            results, total = _epoint(client, SOURCES[8], {}, 5)
+
+        self.assertEqual(total, 1)
+        self.assertEqual(results[0]["title"], "青海设备采购公告")
+        self.assertEqual(results[0]["category"], "政府采购")
 
 
 if __name__ == "__main__":

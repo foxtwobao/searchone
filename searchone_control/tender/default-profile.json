@@ -1,0 +1,93 @@
+{
+  "profile_name": "西北及周边工业物资供应商默认画像",
+  "opportunity_strategy": "starter_biased",
+  "preferred_max_amount_yuan": 2000000,
+  "max_amount_yuan": 5000000,
+  "amount_bands": [
+    {"name": "小额快速机会", "max_amount_yuan": 500000},
+    {"name": "重点机会", "max_amount_yuan": 2000000},
+    {"name": "成长机会", "max_amount_yuan": 5000000}
+  ],
+  "currency": "CNY",
+  "regions": [
+    "陕西",
+    "河南",
+    "山西",
+    "甘肃",
+    "内蒙古",
+    "河北"
+  ],
+  "preferred_purchaser_types": [
+    "央企",
+    "国企",
+    "中外合资",
+    "外企"
+  ],
+  "preferred_procurement_methods": [
+    "询价",
+    "询比",
+    "竞价",
+    "比选",
+    "竞争性谈判",
+    "竞争性磋商",
+    "零星采购",
+    "框架协议",
+    "供应商征集"
+  ],
+  "entry_burden_terms": {
+    "high": ["注册资本", "类似项目业绩", "合同业绩", "厂家授权", "制造商授权", "样品", "项目负责人", "人员证书", "仅限库内", "库内供应商"],
+    "medium": ["投标保证金", "响应保证金", "保证金", "CA", "数字证书", "平台注册", "入库"]
+  },
+  "keyword_groups": {
+    "五金工具": ["五金", "五金工具", "工器具", "手动工具", "电动工具", "紧固件", "扳手", "钻头", "切割片"],
+    "日杂劳保": ["日杂", "劳保", "劳动防护", "个体防护", "安全帽", "防护手套", "工作服", "劳保鞋", "防护用品"],
+    "电气电料": ["电气材料", "电工材料", "电料", "低压电器", "电线", "电缆", "开关", "插座", "配电箱", "灯具"],
+    "油漆涂料": ["油漆", "涂料", "防腐漆", "工业漆", "稀释剂", "防火涂料"],
+    "消防产品": ["消防", "消防器材", "灭火器", "消防设施", "消防物资", "应急消防"],
+    "纺织用品": ["纺织", "纺织用品", "布料", "床品", "被褥", "窗帘", "棉织品", "服装"],
+    "保温材料": ["保温材料", "保温棉", "岩棉", "玻璃棉", "橡塑保温", "硅酸铝", "保温制品", "防火保温"]
+  },
+  "company_advantages": [
+    {
+      "name": "注册时间长",
+      "verified": false,
+      "evidence": "待用户提供营业执照或成立日期"
+    },
+    {
+      "name": "一般纳税人",
+      "verified": false,
+      "evidence": "待用户确认"
+    },
+    {
+      "name": "A级纳税人",
+      "verified": false,
+      "evidence": "待用户确认有效年度"
+    },
+    {
+      "name": "质量管理体系认证",
+      "verified": false,
+      "evidence": "待用户提供体系标准、证书编号和有效期"
+    }
+  ],
+  "enterprise_platform_catalog": "china500-procurement-platforms-2025.csv",
+  "official_catalog_evidence_prefixes": ["A-", "B-"],
+  "official_domains": [
+    "ggzy.gov.cn",
+    "ccgp.gov.cn",
+    "sxggzyjy.cn",
+    "ccgp-shaanxi.gov.cn",
+    "henan.gov.cn",
+    "sxzwfw.gov.cn",
+    "gansu.gov.cn",
+    "nmg.gov.cn",
+    "hebei.gov.cn",
+    "powerchina.cn",
+    "cnpcbidding.com",
+    "chnenergybidding.com.cn",
+    "sinopec.com",
+    "sgcc.com.cn",
+    "qqec.com",
+    "crcc.cn",
+    "cupb.cn"
+  ]
+}

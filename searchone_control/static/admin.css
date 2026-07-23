@@ -320,6 +320,61 @@ th.actions, td.actions { width: 96px; text-align: right; white-space: nowrap; }
 .import-file-row > span { min-width: 0; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .import-result { white-space: pre-wrap; }
 
+.tender-search-tool { background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+.tender-search-row { min-height: 70px; display: flex; align-items: center; gap: 10px; padding: 15px 16px; border-bottom: 1px solid var(--border); }
+.tender-keyword { width: auto; min-width: 260px; flex: 1; }
+.compact-select { height: 38px; display: flex; align-items: center; gap: 7px; padding-left: 10px; color: var(--muted); background: #fff; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12px; }
+.compact-select select { height: 36px; padding: 0 25px 0 4px; color: var(--text); background: transparent; border: 0; outline: 0; font-size: 12px; }
+.tender-submit { flex: 0 0 auto; }
+.tender-source-head { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; }
+.tender-source-head strong { font-size: 13px; font-weight: 650; }
+.tender-source-head > span { color: var(--muted); font-size: 12px; }
+.tender-source-head .icon-text-button { margin-left: auto; }
+.tender-source-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #edf0f2; }
+.tender-source-grid .loading-cell { grid-column: 1 / -1; }
+.tender-source-option { min-width: 0; min-height: 60px; display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-right: 1px solid #edf0f2; border-bottom: 1px solid #edf0f2; cursor: pointer; }
+.tender-source-option:nth-child(5n) { border-right: 0; }
+.tender-source-option:nth-last-child(-n+5) { border-bottom: 0; }
+.tender-source-option:hover { background: #fbfcfd; }
+.tender-source-option:has(input:checked) { background: #f6f8ff; }
+.tender-source-option input { width: 15px; height: 15px; flex: 0 0 auto; accent-color: var(--primary); }
+.tender-source-option > span { min-width: 0; display: grid; }
+.tender-source-option strong { font-size: 13px; font-weight: 650; }
+.tender-source-option small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tender-source-option em { margin-left: auto; color: #7c8795; font-size: 10px; font-style: normal; white-space: nowrap; }
+.tender-results { margin-top: 18px; }
+.tender-summary { display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)); background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+.tender-summary > div { min-height: 78px; display: grid; align-content: center; gap: 5px; padding: 12px 16px; border-right: 1px solid var(--border); }
+.tender-summary > div:last-child { border-right: 0; }
+.tender-summary span { color: var(--muted); font-size: 11px; }
+.tender-summary strong { font-size: 20px; font-weight: 680; }
+.danger-text { color: var(--danger); }
+.tender-source-status { margin: 14px 0; background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+.tender-source-outcome { min-height: 54px; display: grid; grid-template-columns: 10px minmax(220px, 1fr) minmax(150px, auto) 80px; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #edf0f2; }
+.tender-source-outcome:last-child { border-bottom: 0; }
+.tender-source-outcome > div { min-width: 0; display: grid; }
+.tender-source-outcome strong { overflow: hidden; font-size: 12px; font-weight: 630; text-overflow: ellipsis; white-space: nowrap; }
+.tender-source-outcome small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tender-source-outcome > span:not(.status-dot), .tender-source-outcome time { color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; }
+.tender-source-outcome.failed { background: #fffafa; }
+.tender-table { min-width: 1180px; }
+.tender-table th:nth-child(1) { width: 135px; }
+.tender-table th:nth-child(2) { width: 70px; }
+.tender-table th:nth-child(4) { width: 180px; }
+.tender-table th:nth-child(5) { width: 170px; }
+.tender-table th:nth-child(6) { width: 160px; }
+.tender-table td { height: auto; min-height: 64px; padding-top: 12px; padding-bottom: 12px; vertical-align: top; }
+.tender-date { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.tender-title { display: table-cell; }
+.tender-title a { display: block; color: #244bb8; font-weight: 630; }
+.tender-title a:hover { text-decoration: underline; }
+.tender-title small { display: -webkit-box; overflow: hidden; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.tender-title code { display: inline-block; max-width: 100%; overflow: hidden; margin-top: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.tender-empty { min-height: 280px; display: grid; place-content: center; justify-items: center; gap: 10px; color: #8a93a1; }
+.tender-empty svg { width: 28px; height: 28px; }
+.tender-empty strong { font-size: 13px; font-weight: 580; }
+.tender-empty.failed { color: var(--danger); }
+
 .toast-region { position: fixed; z-index: 120; right: 20px; bottom: 20px; display: grid; gap: 8px; }
 .toast { min-width: 240px; max-width: 380px; padding: 11px 13px; color: #fff; background: #263142; border-radius: 6px; box-shadow: var(--shadow); font-size: 13px; animation: toast-in .18s ease; }
 .toast.warning { background: #8a5a00; }
@@ -339,6 +394,10 @@ th.actions, td.actions { width: 96px; text-align: right; white-space: nowrap; }
   .summary-strip { grid-template-columns: repeat(3, 1fr); }
   .summary-strip > div:nth-child(3) { border-right: 0; }
   .summary-strip > div:nth-child(n+4) { border-top: 1px solid var(--border); }
+  .tender-source-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tender-source-option:nth-child(n) { border-right: 1px solid #edf0f2; border-bottom: 1px solid #edf0f2; }
+  .tender-source-option:nth-child(2n) { border-right: 0; }
+  .tender-source-option:nth-last-child(-n+2) { border-bottom: 0; }
 }
 
 @media (max-width: 760px) {
@@ -366,6 +425,35 @@ th.actions, td.actions { width: 96px; text-align: right; white-space: nowrap; }
   .form-grid, .form-grid.proxy-address { grid-template-columns: 1fr; }
   .engine-options { grid-template-columns: 1fr; }
   .drawer-footer { flex-wrap: wrap; }
+  .tender-search-row { align-items: stretch; flex-wrap: wrap; }
+  .tender-keyword { min-width: 100%; flex-basis: 100%; }
+  .compact-select { flex: 1; justify-content: space-between; }
+  .tender-submit { width: 100%; }
+  .tender-source-head { align-items: flex-start; flex-wrap: wrap; }
+  .tender-source-head .icon-text-button { margin-left: 0; }
+  .tender-source-grid { grid-template-columns: 1fr; }
+  .tender-source-option:nth-child(n) { border-right: 0; border-bottom: 1px solid #edf0f2; }
+  .tender-source-option:last-child { border-bottom: 0; }
+  .tender-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tender-summary > div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .tender-summary > div:nth-child(2n) { border-right: 0; }
+  .tender-summary > div:nth-last-child(-n+2) { border-bottom: 0; }
+  .tender-summary > div:last-child { border-right: 1px solid var(--border); }
+  .tender-source-outcome { grid-template-columns: 10px minmax(0, 1fr) 70px; }
+  .tender-source-outcome > span:not(.status-dot) { grid-column: 2 / -1; text-align: left; }
+  .tender-table-shell { overflow: visible; border: 0; background: transparent; }
+  .tender-table { min-width: 0; display: block; }
+  .tender-table thead { display: none; }
+  .tender-table tbody { display: grid; gap: 8px; }
+  .tender-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+  .tender-table tbody tr:hover td { background: transparent; }
+  .tender-table td { min-width: 0; min-height: 0; height: auto; padding: 0; border: 0; }
+  .tender-table td:nth-child(2) { text-align: right; }
+  .tender-table .tender-title { grid-column: 1 / -1; display: block; padding-bottom: 4px; }
+  .tender-table td[data-label] { grid-column: 1 / -1; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: start; overflow-wrap: anywhere; }
+  .tender-table td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: 11px; }
+  .tender-table .channel-tag { width: fit-content; max-width: 100%; }
+  .tender-table .empty-cell { grid-column: 1 / -1; min-height: 140px; display: grid; place-items: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
