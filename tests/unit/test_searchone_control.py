@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import httpx
+import yaml
 from cryptography.fernet import Fernet
 
 from searchone_control.bootstrap import ensure_runtime_secrets
@@ -206,6 +207,46 @@ class SearchOneControlStoreTest(unittest.TestCase):
             created, persisted = ensure_runtime_secrets(path)
         self.assertFalse(created)
         self.assertEqual(persisted["SEARCHONE_ADMIN_PASSWORD"], "first-password")
+
+
+class DeploymentConfigTest(unittest.TestCase):
+    def test_minimax_engine_and_environment_are_configured(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        settings = yaml.safe_load(
+            (repository_root / "config/searchone/settings.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        minimax = next(
+            (item for item in settings["engines"] if item["name"] == "minimax"),
+            None,
+        )
+        self.assertIsNotNone(minimax)
+        self.assertEqual(minimax["engine"], "minimax")
+        self.assertEqual(minimax["shortcut"], "mm")
+        self.assertEqual(minimax["categories"], ["general"])
+        self.assertTrue(minimax["disabled"])
+
+        compose = yaml.safe_load(
+            (repository_root / "container/docker-compose.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        service = compose["services"]["searchone"]
+        self.assertEqual(
+            service["image"],
+            "${SEARCHONE_IMAGE:-docker.io/foxtwobao/searchone}:"
+            "${SEARCHONE_VERSION:-latest}",
+        )
+        self.assertEqual(
+            service["environment"]["MINIMAX_API_KEY"], "${MINIMAX_API_KEY:-}"
+        )
+        for relative_path in (
+            "config/searchone/.env.example",
+            "container/.env.example",
+        ):
+            content = (repository_root / relative_path).read_text(encoding="utf-8")
+            self.assertIn("\nMINIMAX_API_KEY=", f"\n{content}")
 
 
 class AdminTenderSearchTest(unittest.TestCase):
