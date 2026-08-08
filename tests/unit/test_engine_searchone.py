@@ -221,6 +221,8 @@ class MiniMaxEngineTests(SearxTestCase):
                         },
                         {"title": "缺少链接"},
                         "无效结果",
+                        {"title": "链接类型无效", "link": ["https://example.com"]},
+                        {"title": ["标题类型无效"], "link": "https://example.com"},
                     ]
                 }
             )

@@ -6,7 +6,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import httpx
 import yaml
@@ -20,7 +20,8 @@ from searchone_control.networking import (
     proxy_identity,
     test_proxies_concurrently,
 )
-from searchone_control.providers import _request
+from searchone_control.providers import _request, _validate_response, test_provider
+from searchone_control.settings_migration import migrate_engine_settings
 from searchone_control.store import ControlStore
 from searchone_control.tender.admin_search import (
     SOURCES,
@@ -130,6 +131,41 @@ class SearchOneControlStoreTest(unittest.TestCase):
             headers={"Authorization": "Bearer secret"},
             json={"q": "OpenAI"},
         )
+
+    def test_minimax_provider_connection_rejects_malformed_success(self):
+        malformed = Mock()
+        malformed.json.return_value = {"error": "invalid token"}
+        with self.assertRaisesRegex(ValueError, "MiniMax"):
+            _validate_response("minimax", malformed)
+
+        valid = Mock()
+        valid.json.return_value = {"organic": []}
+        _validate_response("minimax", valid)
+
+    def test_minimax_provider_test_rejects_malformed_success(self):
+        store = Mock()
+        store.list_providers.return_value = [
+            {
+                "provider": "minimax",
+                "enabled": True,
+                "secret": "secret",
+            }
+        ]
+        response = Mock(status_code=200)
+        response.json.return_value = {"error": "invalid token"}
+        client = Mock()
+        client.post.return_value = response
+        context = MagicMock()
+        context.__enter__.return_value = client
+
+        with patch("searchone_control.providers.get_store", return_value=store), patch(
+            "searchone_control.providers._client", return_value=context
+        ):
+            result = test_provider("minimax")
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("MiniMax 返回的响应格式无效", result["message"])
+        client.post.assert_called_once()
 
     def test_proxy_url_parsing_and_bulk_insert(self):
         parsed = parse_proxy_url("http://user%40mail:pass%3Aword@209.50.160.174:3129")
@@ -247,6 +283,44 @@ class DeploymentConfigTest(unittest.TestCase):
         ):
             content = (repository_root / relative_path).read_text(encoding="utf-8")
             self.assertIn("\nMINIMAX_API_KEY=", f"\n{content}")
+
+    def test_existing_settings_are_migrated_without_losing_customizations(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tempdir:
+            target = Path(tempdir) / "settings.yml"
+            target.write_text(
+                """
+use_default_settings: true
+search:
+  formats: [html, json]
+engines:
+  - name: tavily
+    engine: tavily
+    shortcut: custom-tv
+    disabled: false
+server:
+  bind_address: 127.0.0.1
+""".lstrip(),
+                encoding="utf-8",
+            )
+            template = repository_root / "config/searchone/settings.yml"
+
+            self.assertTrue(migrate_engine_settings(target, template, "minimax"))
+            migrated = yaml.safe_load(target.read_text(encoding="utf-8"))
+            engines = {item["name"]: item for item in migrated["engines"]}
+            self.assertEqual(engines["tavily"]["shortcut"], "custom-tv")
+            self.assertFalse(engines["tavily"]["disabled"])
+            self.assertEqual(engines["minimax"]["shortcut"], "mm")
+            self.assertEqual(migrated["server"]["bind_address"], "127.0.0.1")
+
+            first_migration = target.read_text(encoding="utf-8")
+            self.assertFalse(migrate_engine_settings(target, template, "minimax"))
+            self.assertEqual(target.read_text(encoding="utf-8"), first_migration)
+
+        entrypoint = (repository_root / "container/entrypoint.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("searchone_control.settings_migration", entrypoint)
 
 
 class AdminTenderSearchTest(unittest.TestCase):

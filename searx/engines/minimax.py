@@ -66,12 +66,14 @@ def response(resp: "SXNG_Response") -> EngineResults:
             continue
         url = item.get("link")
         title = item.get("title")
-        if not url or not title:
+        if not isinstance(url, str) or not url.strip():
+            continue
+        if not isinstance(title, str) or not title.strip():
             continue
         results.add(
             results.types.MainResult(
-                url=url,
-                title=title,
+                url=url.strip(),
+                title=title.strip(),
                 content=item.get("snippet") or "",
                 publishedDate=parse_datetime(item.get("date")),
             )

@@ -132,6 +132,7 @@ SearchOne-only paths that must always be retained:
 - `searx/engines/tavily.py`
 - `searx/engines/exa.py`
 - `searx/engines/metaso.py`
+- `searx/engines/minimax.py`
 - `searx/engines/tender.py`
 - `searx/engines/zhihu.py`
 - `tests/unit/test_searchone_control.py`

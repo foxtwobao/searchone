@@ -1,8 +1,8 @@
 # SearchOne control plane
 
-This overlay adds Tavily, Exa, Metaso, Zhihu, and a curated Chinese tender
-search channel plus a lightweight control plane without changing the upstream
-`searx/settings.yml` file.
+This overlay adds Tavily, Exa, Metaso, MiniMax TokenPlan, Zhihu, and a curated
+Chinese tender search channel plus a lightweight control plane without changing
+the upstream `searx/settings.yml` file.
 
 1. Create `config/searchone/.env` from `.env.example` and add any existing
    provider credentials.
