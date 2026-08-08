@@ -147,12 +147,7 @@ def response(resp: "SXNG_Response") -> EngineResults:
             continue
 
         author = obj.get("author") or {}
-        content = (
-            highlight.get("description")
-            or obj.get("excerpt")
-            or obj.get("description")
-            or ""
-        )
+        content = highlight.get("description") or obj.get("excerpt") or obj.get("description") or ""
         results.add(
             results.types.MainResult(
                 url=url,
@@ -160,9 +155,7 @@ def response(resp: "SXNG_Response") -> EngineResults:
                 content=utils.html_to_text(content),
                 author=author.get("name") or "" if isinstance(author, dict) else "",
                 publishedDate=parse_datetime(obj.get("created_time")),
-                thumbnail=(
-                    author.get("avatar_url") or "" if isinstance(author, dict) else ""
-                ),
+                thumbnail=(author.get("avatar_url") or "" if isinstance(author, dict) else ""),
                 metadata=_metadata(obj),
             )
         )

@@ -73,11 +73,7 @@ def response(resp: "SXNG_Response") -> EngineResults:
             continue
 
         authors = item.get("authors") or []
-        author = (
-            ", ".join(str(value) for value in authors)
-            if isinstance(authors, list)
-            else str(authors)
-        )
+        author = ", ".join(str(value) for value in authors) if isinstance(authors, list) else str(authors)
         score = item.get("score")
         metadata = f"Metaso score: {score}" if score not in (None, "") else ""
         results.add(

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# pylint: disable=missing-class-docstring,missing-module-docstring
+# pylint: disable=invalid-name,missing-class-docstring,missing-module-docstring
 
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
@@ -72,9 +72,7 @@ class TavilyEngineTests(SearxTestCase):
         self.assertEqual(results[1].metadata, "Tavily score: 0.910")
 
     def test_missing_api_key(self):
-        with patch.object(tavily, "api_key", ""), patch.dict(
-            "os.environ", {"TAVILY_API_KEY": ""}
-        ):
+        with patch.object(tavily, "api_key", ""), patch.dict("os.environ", {"TAVILY_API_KEY": ""}):
             with self.assertRaises(SearxEngineAPIException):
                 tavily.request("query", params())
 
@@ -164,9 +162,7 @@ class ExaEngineTests(SearxTestCase):
 
         self.assertEqual(request_params["method"], "POST")
         self.assertEqual(request_params["headers"]["x-api-key"], "exa-key")
-        self.assertEqual(
-            request_params["json"]["contents"]["text"]["maxCharacters"], 500
-        )
+        self.assertEqual(request_params["json"]["contents"]["text"]["maxCharacters"], 500)
 
         results = exa.response(
             response(
@@ -205,9 +201,7 @@ class MiniMaxEngineTests(SearxTestCase):
         )
         self.assertEqual(request_params["method"], "POST")
         self.assertEqual(request_params["json"], {"q": "联网搜索"})
-        self.assertEqual(
-            request_params["headers"]["Authorization"], "Bearer minimax-key"
-        )
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer minimax-key")
 
         results = minimax.response(
             response(
@@ -256,9 +250,7 @@ class MetasoEngineTests(SearxTestCase):
 
         self.assertEqual(request_params["json"]["scope"], "webpage")
         self.assertEqual(request_params["json"]["size"], "10")
-        self.assertEqual(
-            request_params["headers"]["Authorization"], "Bearer metaso-key"
-        )
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer metaso-key")
 
         results = metaso.response(
             response(
@@ -290,9 +282,7 @@ class ZhihuEngineTests(SearxTestCase):
         query = parse_qs(urlparse(request_params["url"]).query)
         self.assertEqual(query["offset"], ["20"])
         self.assertEqual(query["time_interval"], ["a_month"])
-        self.assertEqual(
-            request_params["headers"]["Authorization"], "Bearer tikhub-key"
-        )
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer tikhub-key")
 
         results = zhihu.response(
             response(
@@ -324,8 +314,6 @@ class ZhihuEngineTests(SearxTestCase):
             )
         )
         self.assertEqual(results[0].title, "人工智能是什么")
-        self.assertEqual(
-            results[0].url, "https://www.zhihu.com/question/123/answer/456"
-        )
+        self.assertEqual(results[0].url, "https://www.zhihu.com/question/123/answer/456")
         self.assertEqual(results[0].author, "答主")
         self.assertIn("votes: 12", results[0].metadata)
