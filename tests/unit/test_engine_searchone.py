@@ -11,7 +11,7 @@ from searchone_control.tender import (
     tender_domains,
 )
 
-from searx.engines import exa, metaso, tavily, tender, zhihu
+from searx.engines import exa, metaso, minimax, tavily, tender, zhihu
 from searx.exceptions import (
     SearxEngineAPIException,
     SearxEngineTooManyRequestsException,
@@ -190,6 +190,59 @@ class ExaEngineTests(SearxTestCase):
     def test_rate_limit(self):
         with self.assertRaises(SearxEngineTooManyRequestsException):
             exa.response(response({"error": "quota exceeded"}, status_code=429))
+
+
+class MiniMaxEngineTests(SearxTestCase):
+
+    def test_request_and_response(self):
+        request_params = params()
+        with patch.object(minimax, "api_key", "minimax-key"):
+            minimax.request("联网搜索", request_params)
+
+        self.assertEqual(
+            request_params["url"],
+            "https://api.minimaxi.com/v1/coding_plan/search",
+        )
+        self.assertEqual(request_params["method"], "POST")
+        self.assertEqual(request_params["json"], {"q": "联网搜索"})
+        self.assertEqual(
+            request_params["headers"]["Authorization"], "Bearer minimax-key"
+        )
+
+        results = minimax.response(
+            response(
+                {
+                    "organic": [
+                        {
+                            "title": "MiniMax 结果",
+                            "link": "https://example.com/minimax",
+                            "snippet": "搜索摘要",
+                            "date": "2026-08-08",
+                        },
+                        {"title": "缺少链接"},
+                        "无效结果",
+                    ]
+                }
+            )
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].url, "https://example.com/minimax")
+        self.assertEqual(results[0].title, "MiniMax 结果")
+        self.assertEqual(results[0].content, "搜索摘要")
+        self.assertEqual(results[0].publishedDate.date().isoformat(), "2026-08-08")
+
+    def test_rate_limit(self):
+        with self.assertRaises(SearxEngineTooManyRequestsException):
+            minimax.response(response({"error": "rate limited"}, status_code=429))
+
+    def test_invalid_json_and_payload(self):
+        invalid_json = response({})
+        invalid_json.json.side_effect = ValueError("invalid json")
+        with self.assertRaisesRegex(SearxEngineAPIException, "invalid JSON"):
+            minimax.response(invalid_json)
+
+        with self.assertRaisesRegex(SearxEngineAPIException, "invalid response"):
+            minimax.response(response({"organic": {}}))
 
 
 class MetasoEngineTests(SearxTestCase):
