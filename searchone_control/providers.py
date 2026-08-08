@@ -85,4 +85,10 @@ def _request(client: httpx.Client, provider: str, key: str) -> httpx.Response:
             headers={"Authorization": f"Bearer {key}"},
             params={"keyword": "OpenAI", "page": 1},
         )
+    if provider == "minimax":
+        return client.post(
+            "https://api.minimaxi.com/v1/coding_plan/search",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"q": "OpenAI"},
+        )
     raise ValueError("未知供应商")

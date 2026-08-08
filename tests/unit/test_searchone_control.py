@@ -6,7 +6,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import httpx
 from cryptography.fernet import Fernet
@@ -19,6 +19,7 @@ from searchone_control.networking import (
     proxy_identity,
     test_proxies_concurrently,
 )
+from searchone_control.providers import _request
 from searchone_control.store import ControlStore
 from searchone_control.tender.admin_search import (
     SOURCES,
@@ -105,6 +106,28 @@ class SearchOneControlStoreTest(unittest.TestCase):
         self.assertEqual(proxy["password"], "pass")
         self.assertIn(
             "user:pass@127.0.0.1:8080", self.store.proxy_urls_for_engine("bing")[0]
+        )
+
+    def test_minimax_provider_is_seeded_and_encrypted(self):
+        providers = {item["provider"]: item for item in self.store.list_providers()}
+        self.assertEqual(providers["minimax"]["env_name"], "MINIMAX_API_KEY")
+
+        self.store.update_provider("minimax", "minimax-secret", True)
+        self.assertEqual(
+            self.store.get_provider_secret("MINIMAX_API_KEY"),
+            (True, True, "minimax-secret"),
+        )
+
+    def test_minimax_provider_connection_request(self):
+        client = Mock()
+        response_mock = Mock()
+        client.post.return_value = response_mock
+
+        self.assertIs(_request(client, "minimax", "secret"), response_mock)
+        client.post.assert_called_once_with(
+            "https://api.minimaxi.com/v1/coding_plan/search",
+            headers={"Authorization": "Bearer secret"},
+            json={"q": "OpenAI"},
         )
 
     def test_proxy_url_parsing_and_bulk_insert(self):
