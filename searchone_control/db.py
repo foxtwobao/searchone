@@ -18,6 +18,7 @@ PROVIDERS = (
     ("exa", "Exa", "EXA_API_KEY"),
     ("metaso", "秘塔", "METASO_API_KEY"),
     ("zhihu", "知乎 / TikHub", "TIKHUB_TOKEN"),
+    ("minimax", "MiniMax TokenPlan", "MINIMAX_API_KEY"),
 )
 
 

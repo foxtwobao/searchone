@@ -50,6 +50,7 @@ def test_provider(provider: str) -> dict[str, Any]:
         with _client(provider) as client:
             response = _request(client, provider, key)
             response.raise_for_status()
+            _validate_response(provider, response)
         latency_ms = int((time.monotonic() - started) * 1000)
         message = f"连接正常，HTTP {response.status_code}，{latency_ms} ms"
         store.update_provider_test(provider, "healthy", message)
@@ -58,6 +59,18 @@ def test_provider(provider: str) -> dict[str, Any]:
         message = str(exc)[:300]
         store.update_provider_test(provider, "failed", message)
         return {"status": "failed", "message": message}
+
+
+def _validate_response(provider: str, response: httpx.Response) -> None:
+    if provider != "minimax":
+        return
+
+    try:
+        payload = response.json()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("MiniMax 返回的响应不是有效 JSON") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("organic"), list):
+        raise ValueError("MiniMax 返回的响应格式无效")
 
 
 def _request(client: httpx.Client, provider: str, key: str) -> httpx.Response:
@@ -84,5 +97,11 @@ def _request(client: httpx.Client, provider: str, key: str) -> httpx.Response:
             "https://api.tikhub.io/api/v1/zhihu/web/fetch_article_search_v3",
             headers={"Authorization": f"Bearer {key}"},
             params={"keyword": "OpenAI", "page": 1},
+        )
+    if provider == "minimax":
+        return client.post(
+            "https://api.minimaxi.com/v1/coding_plan/search",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"q": "OpenAI"},
         )
     raise ValueError("未知供应商")

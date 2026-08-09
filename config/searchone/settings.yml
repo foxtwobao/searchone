@@ -46,3 +46,10 @@ engines:
     categories: [social media]
     timeout: 30.0
     disabled: true
+
+  - name: minimax
+    engine: minimax
+    shortcut: mm
+    categories: [general]
+    timeout: 20.0
+    disabled: true

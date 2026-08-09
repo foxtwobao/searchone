@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# pylint: disable=missing-class-docstring,missing-module-docstring
+# pylint: disable=invalid-name,missing-class-docstring,missing-module-docstring
 
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
@@ -11,7 +11,7 @@ from searchone_control.tender import (
     tender_domains,
 )
 
-from searx.engines import exa, metaso, tavily, tender, zhihu
+from searx.engines import exa, metaso, minimax, tavily, tender, zhihu
 from searx.exceptions import (
     SearxEngineAPIException,
     SearxEngineTooManyRequestsException,
@@ -72,9 +72,7 @@ class TavilyEngineTests(SearxTestCase):
         self.assertEqual(results[1].metadata, "Tavily score: 0.910")
 
     def test_missing_api_key(self):
-        with patch.object(tavily, "api_key", ""), patch.dict(
-            "os.environ", {"TAVILY_API_KEY": ""}
-        ):
+        with patch.object(tavily, "api_key", ""), patch.dict("os.environ", {"TAVILY_API_KEY": ""}):
             with self.assertRaises(SearxEngineAPIException):
                 tavily.request("query", params())
 
@@ -164,9 +162,7 @@ class ExaEngineTests(SearxTestCase):
 
         self.assertEqual(request_params["method"], "POST")
         self.assertEqual(request_params["headers"]["x-api-key"], "exa-key")
-        self.assertEqual(
-            request_params["json"]["contents"]["text"]["maxCharacters"], 500
-        )
+        self.assertEqual(request_params["json"]["contents"]["text"]["maxCharacters"], 500)
 
         results = exa.response(
             response(
@@ -192,6 +188,59 @@ class ExaEngineTests(SearxTestCase):
             exa.response(response({"error": "quota exceeded"}, status_code=429))
 
 
+class MiniMaxEngineTests(SearxTestCase):
+
+    def test_request_and_response(self):
+        request_params = params()
+        with patch.object(minimax, "api_key", "minimax-key"):
+            minimax.request("联网搜索", request_params)
+
+        self.assertEqual(
+            request_params["url"],
+            "https://api.minimaxi.com/v1/coding_plan/search",
+        )
+        self.assertEqual(request_params["method"], "POST")
+        self.assertEqual(request_params["json"], {"q": "联网搜索"})
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer minimax-key")
+
+        results = minimax.response(
+            response(
+                {
+                    "organic": [
+                        {
+                            "title": "MiniMax 结果",
+                            "link": "https://example.com/minimax",
+                            "snippet": "搜索摘要",
+                            "date": "2026-08-08",
+                        },
+                        {"title": "缺少链接"},
+                        "无效结果",
+                        {"title": "链接类型无效", "link": ["https://example.com"]},
+                        {"title": ["标题类型无效"], "link": "https://example.com"},
+                    ]
+                }
+            )
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].url, "https://example.com/minimax")
+        self.assertEqual(results[0].title, "MiniMax 结果")
+        self.assertEqual(results[0].content, "搜索摘要")
+        self.assertEqual(results[0].publishedDate.date().isoformat(), "2026-08-08")
+
+    def test_rate_limit(self):
+        with self.assertRaises(SearxEngineTooManyRequestsException):
+            minimax.response(response({"error": "rate limited"}, status_code=429))
+
+    def test_invalid_json_and_payload(self):
+        invalid_json = response({})
+        invalid_json.json.side_effect = ValueError("invalid json")
+        with self.assertRaisesRegex(SearxEngineAPIException, "invalid JSON"):
+            minimax.response(invalid_json)
+
+        with self.assertRaisesRegex(SearxEngineAPIException, "invalid response"):
+            minimax.response(response({"organic": {}}))
+
+
 class MetasoEngineTests(SearxTestCase):
 
     def test_request_and_response(self):
@@ -201,9 +250,7 @@ class MetasoEngineTests(SearxTestCase):
 
         self.assertEqual(request_params["json"]["scope"], "webpage")
         self.assertEqual(request_params["json"]["size"], "10")
-        self.assertEqual(
-            request_params["headers"]["Authorization"], "Bearer metaso-key"
-        )
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer metaso-key")
 
         results = metaso.response(
             response(
@@ -235,9 +282,7 @@ class ZhihuEngineTests(SearxTestCase):
         query = parse_qs(urlparse(request_params["url"]).query)
         self.assertEqual(query["offset"], ["20"])
         self.assertEqual(query["time_interval"], ["a_month"])
-        self.assertEqual(
-            request_params["headers"]["Authorization"], "Bearer tikhub-key"
-        )
+        self.assertEqual(request_params["headers"]["Authorization"], "Bearer tikhub-key")
 
         results = zhihu.response(
             response(
@@ -269,8 +314,6 @@ class ZhihuEngineTests(SearxTestCase):
             )
         )
         self.assertEqual(results[0].title, "人工智能是什么")
-        self.assertEqual(
-            results[0].url, "https://www.zhihu.com/question/123/answer/456"
-        )
+        self.assertEqual(results[0].url, "https://www.zhihu.com/question/123/answer/456")
         self.assertEqual(results[0].author, "答主")
         self.assertIn("votes: 12", results[0].metadata)

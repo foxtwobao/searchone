@@ -93,6 +93,11 @@ EOF
         sed -i "s/ultrasecretkey/$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9')/g" "$target_settings"
     fi
 
+    /usr/local/searxng/.venv/bin/python -m searchone_control.settings_migration \
+        --target "$target_settings" \
+        --template "$template_settings" \
+        --engine minimax
+
     check_file "$target_settings"
 }
 

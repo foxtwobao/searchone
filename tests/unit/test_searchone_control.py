@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Unit tests for the SearchOne control plane."""
+# pylint: disable=consider-using-with,invalid-name,missing-class-docstring,unused-argument
 
 from __future__ import annotations
 
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 import httpx
+import yaml
 from cryptography.fernet import Fernet
 
 from searchone_control.bootstrap import ensure_runtime_secrets
@@ -19,6 +21,8 @@ from searchone_control.networking import (
     proxy_identity,
     test_proxies_concurrently,
 )
+from searchone_control.providers import _request, _validate_response, test_provider
+from searchone_control.settings_migration import migrate_engine_settings
 from searchone_control.store import ControlStore
 from searchone_control.tender.admin_search import (
     SOURCES,
@@ -36,9 +40,7 @@ class SearchOneControlStoreTest(unittest.TestCase):
         self.tempdir = tempfile.TemporaryDirectory()
         self.database = Database(Path(self.tempdir.name) / "searchone.db")
         self.database.initialize("admin", "secret-password")
-        self.store = ControlStore(
-            self.database, SecretBox(Fernet.generate_key().decode("ascii"))
-        )
+        self.store = ControlStore(self.database, SecretBox(Fernet.generate_key().decode("ascii")))
 
     def tearDown(self):
         self.tempdir.cleanup()
@@ -60,14 +62,10 @@ class SearchOneControlStoreTest(unittest.TestCase):
         authenticated = self.store.authenticate_client(client["key"])
         self.assertIsNotNone(authenticated)
         self.assertEqual(authenticated["allowed_engines"], ["bing", "tavily"])
-        self.assertEqual(
-            self.store.get_client(client["id"], reveal=True)["key"], client["key"]
-        )
+        self.assertEqual(self.store.get_client(client["id"], reveal=True)["key"], client["key"])
 
     def test_usage_counts_and_rotation(self):
-        client = self.store.create_client(
-            {"name": "AgentOne", "allowed_engines": ["tavily"]}
-        )
+        client = self.store.create_client({"name": "AgentOne", "allowed_engines": ["tavily"]})
         usage_id = self.store.reserve_usage(client["id"], "OpenAI", ["tavily"])
         self.store.finalize_usage(
             usage_id,
@@ -103,9 +101,65 @@ class SearchOneControlStoreTest(unittest.TestCase):
         )
         self.assertEqual(proxy["username"], "user")
         self.assertEqual(proxy["password"], "pass")
-        self.assertIn(
-            "user:pass@127.0.0.1:8080", self.store.proxy_urls_for_engine("bing")[0]
+        self.assertIn("user:pass@127.0.0.1:8080", self.store.proxy_urls_for_engine("bing")[0])
+
+    def test_minimax_provider_is_seeded_and_encrypted(self):
+        providers = {item["provider"]: item for item in self.store.list_providers()}
+        self.assertEqual(providers["minimax"]["env_name"], "MINIMAX_API_KEY")
+
+        self.store.update_provider("minimax", "minimax-secret", True)
+        self.assertEqual(
+            self.store.get_provider_secret("MINIMAX_API_KEY"),
+            (True, True, "minimax-secret"),
         )
+
+    def test_minimax_provider_connection_request(self):
+        client = Mock()
+        response_mock = Mock()
+        client.post.return_value = response_mock
+
+        self.assertIs(_request(client, "minimax", "secret"), response_mock)
+        client.post.assert_called_once_with(
+            "https://api.minimaxi.com/v1/coding_plan/search",
+            headers={"Authorization": "Bearer secret"},
+            json={"q": "OpenAI"},
+        )
+
+    def test_minimax_provider_connection_rejects_malformed_success(self):
+        malformed = Mock()
+        malformed.json.return_value = {"error": "invalid token"}
+        with self.assertRaisesRegex(ValueError, "MiniMax"):
+            _validate_response("minimax", malformed)
+
+        valid = Mock()
+        valid.json.return_value = {"organic": []}
+        _validate_response("minimax", valid)
+
+    def test_minimax_provider_test_rejects_malformed_success(self):
+        store = Mock()
+        store.list_providers.return_value = [
+            {
+                "provider": "minimax",
+                "enabled": True,
+                "secret": "secret",
+            }
+        ]
+        response = Mock(status_code=200)
+        response.json.return_value = {"error": "invalid token"}
+        client = Mock()
+        client.post.return_value = response
+        context = MagicMock()
+        context.__enter__.return_value = client
+
+        with (
+            patch("searchone_control.providers.get_store", return_value=store),
+            patch("searchone_control.providers._client", return_value=context),
+        ):
+            result = test_provider("minimax")
+
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("MiniMax 返回的响应格式无效", result["message"])
+        client.post.assert_called_once()
 
     def test_proxy_url_parsing_and_bulk_insert(self):
         parsed = parse_proxy_url("http://user%40mail:pass%3Aword@209.50.160.174:3129")
@@ -118,9 +172,7 @@ class SearchOneControlStoreTest(unittest.TestCase):
             ("http", "209.50.160.174", 3129, "user@mail", "pass:word"),
         )
 
-        created = self.store.create_proxies(
-            [parsed, parse_proxy_url("socks5://127.0.0.1:1080")]
-        )
+        created = self.store.create_proxies([parsed, parse_proxy_url("socks5://127.0.0.1:1080")])
         self.assertEqual(len(created), 2)
         self.assertTrue(all(item["status"] == "untested" for item in created))
         self.assertEqual(len(self.store.list_proxies()), 2)
@@ -145,9 +197,7 @@ class SearchOneControlStoreTest(unittest.TestCase):
             "latency_ms": 12,
             "error": "",
         }
-        with patch(
-            "searchone_control.networking.test_proxy", return_value=result
-        ) as mocked:
+        with patch("searchone_control.networking.test_proxy", return_value=result) as mocked:
             tested = test_proxies_concurrently(proxies, max_workers=2)
         self.assertEqual(mocked.call_count, 2)
         self.assertEqual({item["id"] for item in tested}, {"one", "two"})
@@ -183,6 +233,71 @@ class SearchOneControlStoreTest(unittest.TestCase):
             created, persisted = ensure_runtime_secrets(path)
         self.assertFalse(created)
         self.assertEqual(persisted["SEARCHONE_ADMIN_PASSWORD"], "first-password")
+
+
+class DeploymentConfigTest(unittest.TestCase):
+    def test_minimax_engine_and_environment_are_configured(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        settings = yaml.safe_load((repository_root / "config/searchone/settings.yml").read_text(encoding="utf-8"))
+        minimax = next(
+            (item for item in settings["engines"] if item["name"] == "minimax"),
+            None,
+        )
+        self.assertIsNotNone(minimax)
+        self.assertEqual(minimax["engine"], "minimax")
+        self.assertEqual(minimax["shortcut"], "mm")
+        self.assertEqual(minimax["categories"], ["general"])
+        self.assertTrue(minimax["disabled"])
+
+        compose = yaml.safe_load((repository_root / "container/docker-compose.yml").read_text(encoding="utf-8"))
+        service = compose["services"]["searchone"]
+        self.assertEqual(
+            service["image"],
+            "${SEARCHONE_IMAGE:-docker.io/foxtwobao/searchone}:${SEARCHONE_VERSION:-latest}",
+        )
+        self.assertEqual(service["environment"]["MINIMAX_API_KEY"], "${MINIMAX_API_KEY:-}")
+        for relative_path in (
+            "config/searchone/.env.example",
+            "container/.env.example",
+        ):
+            content = (repository_root / relative_path).read_text(encoding="utf-8")
+            self.assertIn("\nMINIMAX_API_KEY=", f"\n{content}")
+
+    def test_existing_settings_are_migrated_without_losing_customizations(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tempdir:
+            target = Path(tempdir) / "settings.yml"
+            target.write_text(
+                """
+use_default_settings: true
+search:
+  formats: [html, json]
+engines:
+  - name: tavily
+    engine: tavily
+    shortcut: custom-tv
+    disabled: false
+server:
+  bind_address: 127.0.0.1
+""".lstrip(),
+                encoding="utf-8",
+            )
+            template = repository_root / "config/searchone/settings.yml"
+
+            self.assertTrue(migrate_engine_settings(target, template, "minimax"))
+            migrated = yaml.safe_load(target.read_text(encoding="utf-8"))
+            engines = {item["name"]: item for item in migrated["engines"]}
+            self.assertEqual(engines["tavily"]["shortcut"], "custom-tv")
+            self.assertFalse(engines["tavily"]["disabled"])
+            self.assertEqual(engines["minimax"]["shortcut"], "mm")
+            self.assertEqual(migrated["server"]["bind_address"], "127.0.0.1")
+
+            first_migration = target.read_text(encoding="utf-8")
+            self.assertFalse(migrate_engine_settings(target, template, "minimax"))
+            self.assertEqual(target.read_text(encoding="utf-8"), first_migration)
+
+        entrypoint = (repository_root / "container/entrypoint.sh").read_text(encoding="utf-8")
+        self.assertIn("searchone_control.settings_migration", entrypoint)
 
 
 class AdminTenderSearchTest(unittest.TestCase):
@@ -252,23 +367,10 @@ class AdminTenderSearchTest(unittest.TestCase):
             second = search_tenders("医疗设备", source_ids, proxies)
 
         self.assertEqual(first["succeeded"], 2)
-        self.assertEqual(
-            len({item["proxy"]["id"] for item in first["sources"]}), 2
-        )
-        first_by_source = {
-            item["source"]["source_id"]: item["proxy"]["id"]
-            for item in first["sources"]
-        }
-        second_by_source = {
-            item["source"]["source_id"]: item["proxy"]["id"]
-            for item in second["sources"]
-        }
-        self.assertTrue(
-            all(
-                first_by_source[source_id] != second_by_source[source_id]
-                for source_id in source_ids
-            )
-        )
+        self.assertEqual(len({item["proxy"]["id"] for item in first["sources"]}), 2)
+        first_by_source = {item["source"]["source_id"]: item["proxy"]["id"] for item in first["sources"]}
+        second_by_source = {item["source"]["source_id"]: item["proxy"]["id"] for item in second["sources"]}
+        self.assertTrue(all(first_by_source[source_id] != second_by_source[source_id] for source_id in source_ids))
 
     def test_search_uses_direct_for_sources_without_unique_proxy(self):
         proxies = [self._proxy("one", "127.0.0.1"), self._proxy("two", "127.0.0.1")]
@@ -306,27 +408,15 @@ class AdminTenderSearchTest(unittest.TestCase):
             ),
             patch("searchone_control.tender.admin_search._PROXY_CURSOR", 0),
         ):
-            first = search_tenders(
-                "医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies
-            )
-            second = search_tenders(
-                "医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies
-            )
+            first = search_tenders("医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies)
+            second = search_tenders("医疗设备", [SOURCES[0].source_id, SOURCES[1].source_id], proxies)
 
         self.assertEqual(
             {item["proxy"]["name"] for item in first["sources"]},
             {"proxy-one", "本机直连"},
         )
-        first_proxied = next(
-            item["source"]["source_id"]
-            for item in first["sources"]
-            if item["proxy"]["id"]
-        )
-        second_proxied = next(
-            item["source"]["source_id"]
-            for item in second["sources"]
-            if item["proxy"]["id"]
-        )
+        first_proxied = next(item["source"]["source_id"] for item in first["sources"] if item["proxy"]["id"])
+        second_proxied = next(item["source"]["source_id"] for item in second["sources"] if item["proxy"]["id"])
         self.assertNotEqual(first_proxied, second_proxied)
 
     def test_search_uses_direct_connection_when_proxy_pool_is_empty(self):
@@ -403,9 +493,7 @@ class AdminTenderSearchTest(unittest.TestCase):
                 }
             }
         }
-        transport = httpx.MockTransport(
-            lambda _request: httpx.Response(200, json=shandong_payload)
-        )
+        transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=shandong_payload))
         with httpx.Client(transport=transport) as client:
             shandong, _ = _shandong(client, SOURCES[7], "设备", 90, 5)
 

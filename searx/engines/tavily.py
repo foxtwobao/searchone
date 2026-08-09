@@ -83,9 +83,7 @@ def response(resp: "SXNG_Response") -> EngineResults:
             continue
 
         score = item.get("score")
-        metadata = (
-            f"Tavily score: {score:.3f}" if isinstance(score, (int, float)) else ""
-        )
+        metadata = f"Tavily score: {score:.3f}" if isinstance(score, (int, float)) else ""
         results.add(
             results.types.MainResult(
                 url=url,

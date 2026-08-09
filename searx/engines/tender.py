@@ -29,9 +29,7 @@ if t.TYPE_CHECKING:
 about = {
     "website": "https://github.com/tommy619399/Bidding-and-Tendering-System",
     "wikidata_id": None,
-    "official_api_documentation": (
-        "https://docs.tavily.com/documentation/api-reference/endpoint/search"
-    ),
+    "official_api_documentation": ("https://docs.tavily.com/documentation/api-reference/endpoint/search"),
     "use_official_api": True,
     "require_api_key": True,
     "results": "JSON",
