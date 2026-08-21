@@ -200,6 +200,7 @@ class ZhipuMcpTest(unittest.TestCase):
 
         self.assertEqual(requests[-1].method, "DELETE")
 
+
 class SearchOneControlStoreTest(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -294,9 +295,7 @@ class SearchOneControlStoreTest(unittest.TestCase):
 
     def test_zhipu_provider_test_uses_mcp_probe(self):
         store = Mock()
-        store.list_providers.return_value = [
-            {"provider": "zhipu", "enabled": True, "secret": "fake-zhipu-key"}
-        ]
+        store.list_providers.return_value = [{"provider": "zhipu", "enabled": True, "secret": "fake-zhipu-key"}]
         client = Mock()
         context = MagicMock()
         context.__enter__.return_value = client
