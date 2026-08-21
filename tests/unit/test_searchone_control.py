@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +24,11 @@ from searchone_control.networking import (
 )
 from searchone_control.providers import _request, _validate_response, test_provider
 from searchone_control.settings_migration import migrate_engine_settings
+from searchone_control.zhipu_mcp import (
+    ZhipuMcpError,
+    probe as probe_zhipu,
+    search as search_zhipu,
+)
 from searchone_control.store import ControlStore
 from searchone_control.tender.admin_search import (
     SOURCES,
@@ -34,6 +40,165 @@ from searchone_control.tender.admin_search import (
     source_catalog,
 )
 
+
+class ZhipuMcpTest(unittest.TestCase):
+    @staticmethod
+    def _sse(payload, *, session_id=""):
+        headers = {"content-type": "text/event-stream"}
+        if session_id:
+            headers["mcp-session-id"] = session_id
+        body = f"event: message\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        return httpx.Response(200, headers=headers, text=body)
+
+    def test_probe_initializes_lists_tools_and_closes_session(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            if request.method == "DELETE":
+                return httpx.Response(200)
+            payload = json.loads(request.content)
+            if payload["method"] == "initialize":
+                return self._sse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": payload["id"],
+                        "result": {
+                            "protocolVersion": "2024-11-05",
+                            "serverInfo": {"name": "mcp-web-search-prime"},
+                        },
+                    },
+                    session_id="session-one",
+                )
+            if payload["method"] == "notifications/initialized":
+                return httpx.Response(200)
+            if payload["method"] == "tools/list":
+                return self._sse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": payload["id"],
+                        "result": {
+                            "tools": [
+                                {
+                                    "name": "web_search_prime",
+                                    "inputSchema": {
+                                        "required": ["search_query"],
+                                        "properties": {"search_query": {"type": "string"}},
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                )
+            self.fail(f"unexpected MCP method: {payload['method']}")
+
+        with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+            probe_zhipu(client, "fake-zhipu-key")
+
+        self.assertEqual([item.method for item in requests], ["POST", "POST", "POST", "DELETE"])
+        initialize = json.loads(requests[0].content)
+        self.assertEqual(initialize["params"]["protocolVersion"], "2024-11-05")
+        self.assertEqual(requests[0].headers["authorization"], "Bearer fake-zhipu-key")
+        self.assertNotIn("mcp-session-id", requests[0].headers)
+        self.assertEqual(requests[1].headers["mcp-session-id"], "session-one")
+        self.assertEqual(requests[2].headers["mcp-session-id"], "session-one")
+        self.assertEqual(requests[3].headers["mcp-session-id"], "session-one")
+
+    def test_search_calls_tool_and_decodes_nested_result_json(self):
+        requests = []
+        rows = [
+            {
+                "title": "智谱结果",
+                "link": "https://example.com/zhipu",
+                "content": "搜索摘要",
+                "refer": "ref_1",
+            }
+        ]
+
+        def handler(request):
+            requests.append(request)
+            if request.method == "DELETE":
+                return httpx.Response(200)
+            payload = json.loads(request.content)
+            if payload["method"] == "initialize":
+                return self._sse(
+                    {"jsonrpc": "2.0", "id": payload["id"], "result": {}},
+                    session_id="session-two",
+                )
+            if payload["method"] == "notifications/initialized":
+                return httpx.Response(200)
+            if payload["method"] == "tools/call":
+                nested = json.dumps(json.dumps(rows, ensure_ascii=False), ensure_ascii=False)
+                return self._sse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": payload["id"],
+                        "result": {
+                            "isError": False,
+                            "content": [{"type": "text", "text": nested}],
+                        },
+                    }
+                )
+            self.fail(f"unexpected MCP method: {payload['method']}")
+
+        with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+            result = search_zhipu(client, "fake-zhipu-key", "联网搜索")
+
+        self.assertEqual(result, rows)
+        call = json.loads(requests[2].content)
+        self.assertEqual(call["method"], "tools/call")
+        self.assertEqual(call["params"]["name"], "web_search_prime")
+        self.assertEqual(
+            call["params"]["arguments"],
+            {"search_query": "联网搜索", "content_size": "medium"},
+        )
+        self.assertEqual(requests[-1].method, "DELETE")
+
+    def test_jsonrpc_and_mcp_tool_errors_are_rejected(self):
+        def initialize_error(request):
+            payload = json.loads(request.content)
+            return self._sse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "error": {"code": -32001, "message": "invalid token"},
+                }
+            )
+
+        with httpx.Client(transport=httpx.MockTransport(initialize_error)) as client:
+            with self.assertRaisesRegex(ZhipuMcpError, "初始化失败"):
+                probe_zhipu(client, "fake-zhipu-key")
+
+        requests = []
+
+        def tool_error(request):
+            requests.append(request)
+            if request.method == "DELETE":
+                return httpx.Response(200)
+            payload = json.loads(request.content)
+            if payload["method"] == "initialize":
+                return self._sse(
+                    {"jsonrpc": "2.0", "id": payload["id"], "result": {}},
+                    session_id="session-error",
+                )
+            if payload["method"] == "notifications/initialized":
+                return httpx.Response(200)
+            return self._sse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "isError": True,
+                        "content": [{"type": "text", "text": "quota exceeded"}],
+                    },
+                }
+            )
+
+        with httpx.Client(transport=httpx.MockTransport(tool_error)) as client:
+            with self.assertRaisesRegex(ZhipuMcpError, "搜索失败"):
+                search_zhipu(client, "fake-zhipu-key", "联网搜索")
+
+        self.assertEqual(requests[-1].method, "DELETE")
 
 class SearchOneControlStoreTest(unittest.TestCase):
     def setUp(self):
@@ -112,6 +277,41 @@ class SearchOneControlStoreTest(unittest.TestCase):
             self.store.get_provider_secret("MINIMAX_API_KEY"),
             (True, True, "minimax-secret"),
         )
+
+    def test_zhipu_provider_is_seeded_and_encrypted(self):
+        providers = {item["provider"]: item for item in self.store.list_providers()}
+        self.assertEqual(providers["zhipu"]["display_name"], "智谱 WebSearch Prime")
+        self.assertEqual(
+            providers["zhipu"]["env_name"],
+            "ZHIPU_CODING_PLAN_API_KEY",
+        )
+
+        self.store.update_provider("zhipu", "fake-zhipu-key", True)
+        self.assertEqual(
+            self.store.get_provider_secret("ZHIPU_CODING_PLAN_API_KEY"),
+            (True, True, "fake-zhipu-key"),
+        )
+
+    def test_zhipu_provider_test_uses_mcp_probe(self):
+        store = Mock()
+        store.list_providers.return_value = [
+            {"provider": "zhipu", "enabled": True, "secret": "fake-zhipu-key"}
+        ]
+        client = Mock()
+        context = MagicMock()
+        context.__enter__.return_value = client
+
+        with (
+            patch("searchone_control.providers.get_store", return_value=store),
+            patch("searchone_control.providers._client", return_value=context),
+            patch("searchone_control.providers.probe_zhipu") as probe,
+        ):
+            result = test_provider("zhipu")
+
+        self.assertEqual(result["status"], "healthy")
+        self.assertIn("HTTP 200", result["message"])
+        probe.assert_called_once_with(client, "fake-zhipu-key")
+        store.update_provider_test.assert_called_once()
 
     def test_minimax_provider_connection_request(self):
         client = Mock()
@@ -236,7 +436,7 @@ class SearchOneControlStoreTest(unittest.TestCase):
 
 
 class DeploymentConfigTest(unittest.TestCase):
-    def test_minimax_engine_and_environment_are_configured(self):
+    def test_managed_engines_and_environment_are_configured(self):
         repository_root = Path(__file__).resolve().parents[2]
         settings = yaml.safe_load((repository_root / "config/searchone/settings.yml").read_text(encoding="utf-8"))
         minimax = next(
@@ -249,6 +449,17 @@ class DeploymentConfigTest(unittest.TestCase):
         self.assertEqual(minimax["categories"], ["general"])
         self.assertTrue(minimax["disabled"])
 
+        zhipu = next(
+            (item for item in settings["engines"] if item["name"] == "zhipu"),
+            None,
+        )
+        self.assertIsNotNone(zhipu)
+        self.assertEqual(zhipu["engine"], "zhipu_web_search")
+        self.assertEqual(zhipu["shortcut"], "zp")
+        self.assertEqual(zhipu["categories"], ["general"])
+        self.assertEqual(zhipu["timeout"], 30.0)
+        self.assertTrue(zhipu["disabled"])
+
         compose = yaml.safe_load((repository_root / "container/docker-compose.yml").read_text(encoding="utf-8"))
         service = compose["services"]["searchone"]
         self.assertEqual(
@@ -256,12 +467,17 @@ class DeploymentConfigTest(unittest.TestCase):
             "${SEARCHONE_IMAGE:-docker.io/foxtwobao/searchone}:${SEARCHONE_VERSION:-latest}",
         )
         self.assertEqual(service["environment"]["MINIMAX_API_KEY"], "${MINIMAX_API_KEY:-}")
+        self.assertEqual(
+            service["environment"]["ZHIPU_CODING_PLAN_API_KEY"],
+            "${ZHIPU_CODING_PLAN_API_KEY:-}",
+        )
         for relative_path in (
             "config/searchone/.env.example",
             "container/.env.example",
         ):
             content = (repository_root / relative_path).read_text(encoding="utf-8")
             self.assertIn("\nMINIMAX_API_KEY=", f"\n{content}")
+            self.assertIn("\nZHIPU_CODING_PLAN_API_KEY=", f"\n{content}")
 
     def test_existing_settings_are_migrated_without_losing_customizations(self):
         repository_root = Path(__file__).resolve().parents[2]
@@ -292,12 +508,20 @@ server:
             self.assertEqual(engines["minimax"]["shortcut"], "mm")
             self.assertEqual(migrated["server"]["bind_address"], "127.0.0.1")
 
-            first_migration = target.read_text(encoding="utf-8")
+            minimax_migration = target.read_text(encoding="utf-8")
             self.assertFalse(migrate_engine_settings(target, template, "minimax"))
-            self.assertEqual(target.read_text(encoding="utf-8"), first_migration)
+            self.assertEqual(target.read_text(encoding="utf-8"), minimax_migration)
+
+            self.assertTrue(migrate_engine_settings(target, template, "zhipu"))
+            migrated = yaml.safe_load(target.read_text(encoding="utf-8"))
+            self.assertEqual(migrated["engines"][-1]["name"], "zhipu")
+            zhipu_migration = target.read_text(encoding="utf-8")
+            self.assertFalse(migrate_engine_settings(target, template, "zhipu"))
+            self.assertEqual(target.read_text(encoding="utf-8"), zhipu_migration)
 
         entrypoint = (repository_root / "container/entrypoint.sh").read_text(encoding="utf-8")
         self.assertIn("searchone_control.settings_migration", entrypoint)
+        self.assertIn("for engine in minimax zhipu", entrypoint)
 
 
 class AdminTenderSearchTest(unittest.TestCase):

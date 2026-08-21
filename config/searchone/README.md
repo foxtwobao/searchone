@@ -1,8 +1,8 @@
 # SearchOne control plane
 
-This overlay adds Tavily, Exa, Metaso, MiniMax TokenPlan, Zhihu, and a curated
-Chinese tender search channel plus a lightweight control plane without changing
-the upstream `searx/settings.yml` file.
+This overlay adds Tavily, Exa, Metaso, MiniMax TokenPlan, Zhipu WebSearch Prime,
+Zhihu, and a curated Chinese tender search channel plus a lightweight control
+plane without changing the upstream `searx/settings.yml` file.
 
 1. Create `config/searchone/.env` from `.env.example` and add any existing
    provider credentials.
@@ -31,6 +31,15 @@ proxy with no channel selection applies to every engine.
 The `tender` channel reuses the managed `TAVILY_API_KEY`. It expands product and
 procurement terms and restricts results to the bundled public-procurement source
 catalog. Authorize `tender` separately on client API keys that need this channel.
+
+The `zhipu` channel uses only the GLM Coding Plan WebSearch Prime MCP endpoint,
+not Zhipu's ordinary REST search API. Configure `ZHIPU_CODING_PLAN_API_KEY` in
+the environment or save it as `智谱 WebSearch Prime` under `/admin/providers`.
+The MCP adapter creates and closes one session per search. Existing client keys
+do not gain access automatically; edit a key under `/admin/clients` and select
+`zhipu` when that deployment should query this channel. If MiniMax and Zhipu are
+both selected, SearchOne queries both and merges their results through the
+existing SearXNG aggregation flow.
 
 ## Docker Compose
 

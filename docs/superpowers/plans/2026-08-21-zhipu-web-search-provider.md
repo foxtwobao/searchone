@@ -239,3 +239,15 @@ git log --oneline origin/master..HEAD
 The PR summary must state that AgentOne does not change, existing client keys
 are not modified automatically, the image name remains unchanged, and the
 credential used for manual probing was not committed.
+
+## Completion Status
+
+Implementation and focused verification completed on 2026-08-21:
+
+- 26 SearchOne control-plane tests passed.
+- 16 SearchOne engine tests passed with a process-local Windows compatibility
+  shim for SearXNG's Linux-only `pwd` import.
+- Pylint, `git diff --check`, shell syntax, Compose configuration, and a
+  credential-pattern scan passed.
+- Image build and `/healthz` smoke testing remain unverified because the local
+  Docker Desktop daemon was unavailable. No Runtime E2E gate was requested.
