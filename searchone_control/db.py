@@ -19,6 +19,7 @@ PROVIDERS = (
     ("metaso", "秘塔", "METASO_API_KEY"),
     ("zhihu", "知乎 / TikHub", "TIKHUB_TOKEN"),
     ("minimax", "MiniMax TokenPlan", "MINIMAX_API_KEY"),
+    ("zhipu", "智谱 WebSearch Prime", "ZHIPU_CODING_PLAN_API_KEY"),
 )
 
 

@@ -10,9 +10,10 @@ from httpx_socks import SyncProxyTransport
 
 from .networking import proxy_url
 from .runtime import get_store
+from .zhipu_mcp import probe as probe_zhipu
 
 
-def _client(provider: str) -> httpx.Client:
+def _client(provider: str, timeout: float = 20) -> httpx.Client:
     store = get_store()
     candidates = [
         item
@@ -20,16 +21,16 @@ def _client(provider: str) -> httpx.Client:
         if item["enabled"] and (not item["channels"] or provider in item["channels"])
     ]
     if not candidates:
-        return httpx.Client(timeout=20, follow_redirects=True)
+        return httpx.Client(timeout=timeout, follow_redirects=True)
     selected = candidates[0]
     url = proxy_url(selected)
     if selected["scheme"].startswith("socks"):
         return httpx.Client(
             transport=SyncProxyTransport.from_url(url),
-            timeout=20,
+            timeout=timeout,
             follow_redirects=True,
         )
-    return httpx.Client(proxy=url, timeout=20, follow_redirects=True)
+    return httpx.Client(proxy=url, timeout=timeout, follow_redirects=True)
 
 
 def test_provider(provider: str) -> dict[str, Any]:
@@ -48,11 +49,16 @@ def test_provider(provider: str) -> dict[str, Any]:
     started = time.monotonic()
     try:
         with _client(provider) as client:
-            response = _request(client, provider, key)
-            response.raise_for_status()
-            _validate_response(provider, response)
+            if provider == "zhipu":
+                probe_zhipu(client, key)
+                status_code = 200
+            else:
+                response = _request(client, provider, key)
+                response.raise_for_status()
+                _validate_response(provider, response)
+                status_code = response.status_code
         latency_ms = int((time.monotonic() - started) * 1000)
-        message = f"连接正常，HTTP {response.status_code}，{latency_ms} ms"
+        message = f"连接正常，HTTP {status_code}，{latency_ms} ms"
         store.update_provider_test(provider, "healthy", message)
         return {"status": "healthy", "message": message, "latency_ms": latency_ms}
     except Exception as exc:  # pylint: disable=broad-except

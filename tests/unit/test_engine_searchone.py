@@ -11,7 +11,7 @@ from searchone_control.tender import (
     tender_domains,
 )
 
-from searx.engines import exa, metaso, minimax, tavily, tender, zhihu
+from searx.engines import exa, metaso, minimax, tavily, tender, zhipu_web_search, zhihu
 from searx.exceptions import (
     SearxEngineAPIException,
     SearxEngineTooManyRequestsException,
@@ -239,6 +239,47 @@ class MiniMaxEngineTests(SearxTestCase):
 
         with self.assertRaisesRegex(SearxEngineAPIException, "invalid response"):
             minimax.response(response({"organic": {}}))
+
+
+class ZhipuEngineTests(SearxTestCase):
+    def test_search_uses_managed_key_and_maps_results(self):
+        client = Mock()
+        context = Mock()
+        context.__enter__ = Mock(return_value=client)
+        context.__exit__ = Mock(return_value=False)
+        rows = [
+            {
+                "title": " 智谱结果 ",
+                "link": " https://example.com/zhipu ",
+                "content": "搜索摘要",
+            },
+            {"title": "缺少链接"},
+            "无效结果",
+            {"title": ["无效标题"], "link": "https://example.com/invalid"},
+        ]
+
+        with (
+            patch.object(zhipu_web_search, "api_key", "fake-zhipu-key"),
+            patch.object(zhipu_web_search, "_client", return_value=context) as client_factory,
+            patch.object(zhipu_web_search, "search_mcp", return_value=rows) as mcp_search,
+        ):
+            results = zhipu_web_search.search("联网搜索", {})
+
+        self.assertEqual(zhipu_web_search.engine_type, "offline")
+        client_factory.assert_called_once_with("zhipu", timeout=30.0)
+        mcp_search.assert_called_once_with(client, "fake-zhipu-key", "联网搜索")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].title, "智谱结果")
+        self.assertEqual(results[0].url, "https://example.com/zhipu")
+        self.assertEqual(results[0].content, "搜索摘要")
+
+    def test_search_requires_managed_key(self):
+        with (
+            patch.object(zhipu_web_search, "api_key", ""),
+            patch.dict("os.environ", {"ZHIPU_CODING_PLAN_API_KEY": ""}),
+        ):
+            with self.assertRaises(SearxEngineAPIException):
+                zhipu_web_search.search("query", {})
 
 
 class MetasoEngineTests(SearxTestCase):

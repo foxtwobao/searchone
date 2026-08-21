@@ -127,12 +127,14 @@ SearchOne-only paths that must always be retained:
 - `manage-searchone`
 - `requirements-searchone.txt`
 - `searchone_control/`
+- `searchone_control/zhipu_mcp.py`
 - `config/searchone/`
 - `searx/engines/_searchone_api.py`
 - `searx/engines/tavily.py`
 - `searx/engines/exa.py`
 - `searx/engines/metaso.py`
 - `searx/engines/minimax.py`
+- `searx/engines/zhipu_web_search.py`
 - `searx/engines/tender.py`
 - `searx/engines/zhihu.py`
 - `tests/unit/test_searchone_control.py`

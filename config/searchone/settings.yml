@@ -53,3 +53,10 @@ engines:
     categories: [general]
     timeout: 20.0
     disabled: true
+
+  - name: zhipu
+    engine: zhipu_web_search
+    shortcut: zp
+    categories: [general]
+    timeout: 30.0
+    disabled: true
